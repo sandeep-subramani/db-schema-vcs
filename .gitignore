@@ -1,0 +1,17 @@
+# environment
+.env
+.env.*
+!.env.example
+
+# dependencies & build output (node-flavored; extend when stack lands)
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+
+# tooling
+.claude/settings.local.json
+.DS_Store
+*.log
