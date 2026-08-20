@@ -8,9 +8,11 @@ scope change gets a decisions.md entry.
 - [ ] Hosting account + deploy authorization (after stack decision)
 
 ## Day 0 — decisions & scaffold
-- [ ] Resolve open decisions 1–6 (list in CLAUDE.md): options laid
+- [ ] Resolve open decisions 1–5 (list in CLAUDE.md): options laid
       out, my pick, each logged in decisions.md
-- [ ] Scaffold the app per stack decision; fill the Commands section
+- [x] Decision 6 (stack/deploy/tests) — decisions.md #2: Vite+React+TS,
+      Express 5, Render + managed Postgres, Vitest
+- [x] Scaffold the app per stack decision; fill the Commands section
       in CLAUDE.md
 - [ ] First deploy (hello world) so the pipeline exists from day one
 

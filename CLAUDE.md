@@ -8,9 +8,14 @@ conflict detection. Row data is out of scope; the schema itself
 Timebox: 5 days to a deployed URL. Scope decisions follow from that.
 
 ## Commands
-(Fill this section in immediately after the stack is scaffolded:
-dev server, test, typecheck, lint, build. Until then, ask before
-running project commands.)
+All from repo root (npm workspaces: engine/, server/, client/):
+- `npm run dev` — server (:3000) + client (:5173, proxies /api)
+- `npm test` — Vitest across packages (`npm run test:watch` to watch)
+- `npm run typecheck` — tsc --noEmit in every workspace
+- `npm run lint` — ESLint (flat config at repo root)
+- `npm run build` — client production bundle → client/dist
+- `npm start` — production server; serves client/dist when
+  NODE_ENV=production
 
 ## Working agreement — IMPORTANT
 - I make every meaningful decision: architecture, scope, product, UX.
@@ -42,7 +47,6 @@ running project commands.)
   4. Merge output: merged schema only vs also migration SQL.
   5. Branch model: main → branch → merge back only? No nesting or
      rebase?
-  6. Stack, deployment, test tooling.
 - When one resolves: full entry in decisions.md, then delete it from
   this list.
 

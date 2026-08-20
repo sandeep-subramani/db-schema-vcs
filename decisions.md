@@ -32,3 +32,50 @@ territory; #2 shows less of that domain and more systems depth.
 **What I deliberately cut:** Nothing yet at this level — the cuts
 start with the next decisions (input method, diff approach, feature
 tiers).
+
+---
+
+## 2. Stack — Vite/React/TS + Express 5, Render + managed Postgres, Vitest
+
+**The decision:** Classic client-server split: Vite + React +
+TypeScript frontend, Express 5 + TypeScript backend. One host, one
+deploy — Express serves the built frontend bundle in production
+(same origin, so CORS never exists; Vite's dev proxy covers local
+dev; SPA fallback as middleware, since bare `*` routes broke in
+Express 5). Hosted on Render's free tier with its managed Postgres
+for storing schema snapshots/branches. Vitest for tests.
+
+**The alternatives:** (a) Client-only Vite SPA with localStorage —
+rejected as too minimal; no server-side persistence at all.
+(b) Next.js on Vercel — rejected for framework weight: the
+server/client component split and caching magic are overhead to
+learn and defend, and none of its features are needed here.
+(c) Vite + bare Vercel serverless functions — leanest option, but
+serverless has no long-running process and Vercel has no disk;
+rejected together with the Vercel path. (d) Railway + SQLite on a
+volume — equally viable pairing (~$5, no cold starts, simplest
+storage story); the final tiebreak was integration/dev-environment
+ease, nothing architectural. (e) Fly.io — best cold starts and
+regions, but CLI-first ops and unmanaged Postgres are a week of
+learning that doesn't fit the timebox.
+
+**The reasoning:** The split keeps frontend and backend independently
+swappable, which matters because hosting is the least certain piece —
+a plain Express server is the most portable backend shape and moves
+hosts in about an hour. Render was picked over Railway for
+push-to-deploy simplicity (no CLI, no config file) on a genuinely
+free tier. Postgres over SQLite because Render's free filesystem is
+wiped on restart, so a file database can't live there. Vitest because
+it's Vite-native: same config and TS pipeline, zero extra setup, and
+it covers both the pure engine functions and Express handlers.
+
+**Accepted tradeoffs:** Free-tier cold starts (~50s first hit after
+idle) — a demo-day problem with cheap fixes (demo from localhost,
+pay ~$7 for the week, or a keep-warm ping), not an architecture
+decider. Free Postgres auto-expires after 30 days — fine for the
+demo window; upgrade or dump/restore elsewhere if the app must
+outlive it.
+
+**What I deliberately cut:** Vercel entirely (no long-running server,
+no disk), SQLite (host constraint), Fly.io (ops burden), Jest (buys
+nothing over Vitest here, costs its own config layer).
