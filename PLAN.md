@@ -5,7 +5,7 @@ scope change gets a decisions.md entry.
 
 ## Human-only tasks
 - [x] GitHub repo
-- [ ] Hosting account + deploy authorization (after stack decision)
+- [x] Hosting account + deploy authorization (Render, Singapore)
 
 ## Day 0 — decisions & scaffold
 - [ ] Resolve open decisions 1–5 (list in CLAUDE.md): options laid
@@ -14,7 +14,20 @@ scope change gets a decisions.md entry.
       Express 5, Render + managed Postgres, Vitest
 - [x] Scaffold the app per stack decision; fill the Commands section
       in CLAUDE.md
-- [ ] First deploy (hello world) so the pipeline exists from day one
+- [x] First deploy (hello world) — https://db-schema-vcs.onrender.com
+      (Singapore, health check /api/health, md-only commits ignored)
+
+### Render notes (from Advanced settings, for later)
+- Build command is `npm ci --include=dev && npm run build && npm
+  prune --omit=dev` — NODE_ENV=production makes npm skip
+  devDependencies (vite), so include them for the build, prune after.
+- Set at creation: health check `/api/health` (verifies deploys;
+  does NOT keep free tier awake), build filter ignoring `**/*.md`
+  (docs-only commits shouldn't trigger builds).
+- Pre-deploy command = run Postgres migrations before new code
+  boots; paid-only. On free tier: migrate on server boot instead.
+- Auto-deploy "after CI checks pass" needs a GitHub Actions
+  workflow running our checks — stretch item, day 4–5 if time.
 
 ## Day 1 — schema core
 - [ ] Schema model: tables, columns, types, constraints (per tier
