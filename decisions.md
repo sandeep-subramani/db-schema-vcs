@@ -79,3 +79,45 @@ outlive it.
 **What I deliberately cut:** Vercel entirely (no long-running server,
 no disk), SQLite (host constraint), Fly.io (ops burden), Jest (buys
 nothing over Vitest here, costs its own config layer).
+
+---
+
+## 3. Feature tiers — core + foreign keys now, column extras as roadmap
+
+**The decision:** The engine ships with tables, columns, types,
+nullability, primary keys, and foreign keys (tier "B"). Defaults,
+unique constraints, and indexes go on the roadmap as incremental
+extensions — pushed for if time permits, not committed scope. Two
+design commitments made now so those extensions stay cheap: (1) the
+stored snapshot format tolerates missing fields (absent = feature
+not used), so old branches keep loading when the model grows; (2)
+the diff is a list of self-describing typed changes, so a new
+feature adds a new change type without touching existing ones.
+
+**The alternatives:** (a) Bare core without FKs — rejected because
+FKs are the one feature that changes the merge engine's *core* cases
+(cross-table conflicts like "FK added to a table the other branch
+dropped") rather than extending a list; retrofitting them after the
+merge engine exists means reopening conflict detection and its test
+matrix — a day-plus later versus roughly half a day now. (b)
+Committing defaults/uniques/indexes upfront — rejected as committed
+scope because each feature costs four layers (model, diff, merge
+rules, UI) and three more features would eat the day-4 product pass;
+they add diff length, not new conflict types. Kept as roadmap since
+they're per-column attributes mechanically similar to nullability
+(~2–4 hours each, no structural change) and only a bit above
+bare-minimum for a credible schema VCS.
+
+**The reasoning:** B is the cheapest tier that produces a conflict
+category worth demoing — two branches each valid alone, broken only
+in combination. Starting at B also makes every later adaptation
+easier: the extensible-snapshot and typed-change-list commitments
+mean the roadmap features are additive, not rework.
+
+**What I deliberately cut:** Triggers, views, stored procedures, and
+check constraints — their content is arbitrary SQL, so without a
+parser diffing them degrades to plain-text "something changed,"
+which undercuts the whole pitch; not worth it under the timebox.
+Multiple SQL dialects — each one multiplies the type vocabulary and
+validation rules; one Postgres-flavored type set keeps the engine
+honest.

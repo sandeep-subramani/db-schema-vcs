@@ -30,8 +30,9 @@ scope change gets a decisions.md entry.
   workflow running our checks — stretch item, day 4–5 if time.
 
 ## Day 1 — schema core
-- [ ] Schema model: tables, columns, types, constraints (per tier
-      decision)
+- [ ] Schema model: tables, columns, types, nullability, primary
+      keys, foreign keys (decisions.md #3); snapshot format tolerates
+      missing fields, diff = list of typed changes
 - [ ] Schema input per decision (editor / SQL / JSON) + seed example
       schema
 - [ ] Create branch + switch branch (minimal model)
@@ -52,6 +53,8 @@ scope change gets a decisions.md entry.
 - [ ] Readability polish on diff and merge views
 - [ ] Stretch (only if everything above is green): migration SQL
       output or SQL import — whichever was deferred
+- [ ] Stretch roadmap (decisions.md #3, in priority order): column
+      defaults, unique constraints, indexes — each ~2–4h, additive
 
 ## Day 5 — ship
 - [ ] README: setup that works in one shot, short architecture sketch

@@ -42,8 +42,6 @@ All from repo root (npm workspaces: engine/, server/, client/):
   1. Schema input: visual editor vs paste-SQL vs JSON import.
   2. Diff approach: snapshot comparison + rename heuristics + user
      confirmation vs recorded edit operations vs hybrid.
-  3. Feature tiers: in (tables, columns, types, nullability, primary
-     keys, foreign keys?) / cut (triggers, views, multiple dialects?).
   4. Merge output: merged schema only vs also migration SQL.
   5. Branch model: main → branch → merge back only? No nesting or
      rebase?
