@@ -87,7 +87,11 @@ schemas can't be imported yet; kept parsing as a stretch goal."
    myself.
 
 ## UX bar
-- No blank first run — seed an example schema.
+- No blank first run — a new repo opens on a first-commit gate page
+  offering every entry door: upload/paste JSON, visual editor, SQL
+  import (shown disabled with a "coming soon" tag until built). The
+  example schema is never auto-seeded; it loads only via an explicit
+  button (decisions.md #14).
 - Design empty states and error messages, not just the happy path.
 - Diff and merge-conflict views must be readable at a glance; that IS
   the product.

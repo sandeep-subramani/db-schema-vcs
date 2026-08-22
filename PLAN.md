@@ -36,11 +36,19 @@ scope change gets a decisions.md entry.
       pointing at any solely-unique column (decisions.md #3, #10);
       snapshot format tolerates missing fields, diff = list of typed
       changes (diff part lands day 2)
-- [ ] Schema input: visual editor + JSON import/export
+- [x] Schema input: visual editor + JSON import/export
       (decisions.md #4) + seed example schema
+- [ ] Persistence + multi-user base (decisions.md #12, #13): Postgres
+      tables via boot-time migration runner; users (username-only
+      identity, no auth), repos, members; scope grew here — expect
+      spill into day 2 morning
 - [ ] Branching + history (decisions.md #7): create branch from any
       branch (tree, parent recorded), switch branch, explicit commit
-      with message onto auto-saved working state
+      with message onto explicitly-saved working state (save model:
+      decisions.md #15)
+- [ ] First-commit gate page for new repos: JSON upload / visual
+      editor / SQL import disabled with "coming soon" tag; "Load
+      example schema" button replaces auto-seed (decisions.md #14)
 
 ## Day 2 — diff engine
 - [ ] Diff: snapshot comparison + rename heuristics + user

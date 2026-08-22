@@ -459,3 +459,170 @@ before and can recover after — the two failure modes of cascading
 **What I deliberately cut:** Redo (undo-of-undo) — plain undo covers
 the recovery story; redo is bookkeeping with no demo value. Recording
 editor operations for rename hints stays cut per decision #5.
+
+---
+
+## 12. Persistence — JSONB snapshots, real Postgres everywhere, hand-rolled boot migrations
+
+**The decision:** Every stored schema version — each commit, and each
+branch's working state — is a whole snapshot saved as one JSONB value
+in one Postgres row. Local dev and tests run against real Postgres
+installed via brew (`schema_vcs` for dev, `schema_vcs_test` for
+tests, wiped and re-migrated per run); prod uses Render's managed
+Postgres. The app's own tables (users, repos, branches, commits…) are
+created by a hand-rolled migration runner: numbered `.sql` files
+applied in order at server boot, tracked in a bookkeeping table —
+the same path in dev and prod, since Render's free tier has no
+pre-deploy step. (Terminology note, because the word collides: these
+migrations build the app's own storage tables; the schemas the
+product versions are just JSON documents in rows and never migrate.)
+
+**The alternatives:** For commit storage: (a) delta chains — store
+diffs, with periodic full snapshots — rejected because reading any
+version then means replaying diffs, a second code path where any
+apply() bug silently corrupts history, and the diff engine doesn't
+exist until day 2, so a day-1 task would block on day-2 work.
+(b) Normalized rows (a relational row per table/column/constraint
+per version) — rejected: the largest migration surface and
+reconstruction code in both directions, bought for SQL queries over
+schema internals that no planned feature needs. For the dev/test
+database: an in-memory storage interface (rejected — the Postgres
+implementation becomes the least-tested code in the app; "works
+locally, breaks on Render" becomes real) and pg-mem (rejected —
+partial emulation, new dependency). For migrations: node-pg-migrate
+was pre-approved as a dependency but declined on dev-time grounds —
+its setup, conventions, and tooling cost more than the ~40 lines of
+runner it would replace.
+
+**The reasoning:** Snapshots are a few KB; duplicating unchanged
+tables across commits is irrelevant at that scale, and whole-snapshot
+rows make every read one query — "diff any two versions" is load two
+rows and run the engine, with nothing to replay and nothing to
+corrupt. Accepted tradeoffs: history storage grows linearly with
+commits (fine at this scale), and local dev needs a one-time brew
+Postgres install.
+
+**What I deliberately cut:** Delta compression of history in any
+form. A storage abstraction with swappable backends — nothing calls
+for it; the repository functions talk to pg directly.
+
+---
+
+## 13. Multi-user scope — real users/repos/members model now, username-only identity, auth later
+
+**The decision:** The product is multi-user: each user owns as many
+repos as they want; each repo has its own fully isolated branch tree;
+repos can be shared, and members of a shared repo work in a shared
+workspace (shared branches, shared working states). The data model is
+built for this from day one — `users` and `repos` tables, with each
+repo carrying its member list in a column on its own row (product
+owner's simplification over a separate membership table: one fewer
+table to build; the accepted loss, referential integrity on member
+ids, is moot while user deletion doesn't exist). Identity, though, is
+deliberately lightweight: you claim a username (no password), the
+client remembers it and attaches it to every request — cookie/session
+machinery deferred entirely — and sharing a repo means appending a
+username to the repo's member list.
+
+**The alternatives:** (a) Full auth now — passwords or OAuth,
+sessions, signup/login screens, invite flows — rejected: 1.5–2 of the
+4 remaining days, colliding head-on with diff (day 2) and merge
+(day 3), which the UX bar names as the product. (c) Repos only, no
+users — rejected: no ownership or sharing story at demo time, and
+retrofitting users later re-migrates everything. The original
+single-workspace assumption was rejected by the product owner:
+multi-user is the expected product shape.
+
+**The reasoning:** The chosen shape buys the full demoable vision —
+users, repos, sharing — for roughly half a day, because the real cost
+of auth lives in credential and session security, not in the data
+model. Swapping in real auth later touches only the identity layer;
+repos, branches, and commits never change. Accepted tradeoff, stated
+plainly: there is no security. Anyone who types a username is that
+user. Fine for a demo; must be replaced before any real use.
+
+**What I deliberately cut:** Live same-branch co-editing
+(Google-Docs style) — CRDT/operational-transform territory, weeks not
+days, cut from every option considered. Same-repo collaboration
+happens naturally on separate branches; simultaneous edits to the
+same branch are governed by the explicit-save model (entry pending).
+Also cut: roles or permissions beyond member-or-not.
+
+---
+
+## 14. Seed schema demoted to a button; first run = first-commit gate page
+
+**The decision:** The example web-shop schema stops being auto-loaded
+anywhere, in every environment. A brand-new repo opens on a
+first-commit gate page offering every entry door: upload/paste JSON,
+build in the visual editor, and paste SQL — the SQL button rendered
+but disabled with a "coming soon" tag until day 4 delivers it
+(deliberately visible: the product owner wants the nag on every
+viewing as a reminder that SQL import is committed scope, #8). The
+example schema stays exactly one explicit click away — a "Load
+example schema" button — for quick testing and worst-case demo
+recovery, in dev and prod alike, but never becomes stored data on
+its own.
+
+**The alternatives:** Example behind a dev-only env flag — rejected:
+kills the "quick confirmation in prod worst cases" use the product
+owner explicitly wants. Example as test fixtures only — same
+rejection, stronger. Auto-seeding the example as every repo's first
+commit (the original reading of the UX bar) — rejected: real dev and
+prod data must start from the user's own schema, not demo residue.
+
+**The reasoning:** "No blank first run" is satisfied by design, not
+by data: the gate page is a designed first-run with clear next
+actions, so the empty state carries the UX weight the auto-seed used
+to. CLAUDE.md's UX bar was reworded accordingly; this entry is the
+history behind that edit.
+
+**What I deliberately cut:** Auto-seeding in any environment, and any
+separate "demo mode" build flavor — one build, one behavior.
+
+---
+
+## 15. Save model — explicit saves, dialogs only at truthful moments
+
+**The decision:** Working state is written to the server only at
+explicit moments: the Save button, a branch switch, and a commit
+(which saves by definition). No debounced autosave, and no write of
+any kind at tab close — closing with unsaved changes triggers the
+browser's native "unsaved changes" prompt (the only dialog browsers
+permit there), while in-app moments we control (switching branch
+with dirty edits) get a real three-way dialog: save & continue /
+discard / cancel. A save that would wipe out someone else's newer
+save — same branch, another member or another tab — is caught by one
+staleness check: the client sends the saved-at marker of the state
+it loaded, the server compares it to what's stored, and only a
+genuine mismatch raises the overwrite dialog: overwrite theirs /
+reload theirs / cancel. Data loss therefore always requires the
+user's explicit consent, and the dialog only appears when it is
+telling the truth.
+
+**The alternatives:** Debounced server autosave — rejected by the
+product owner: saving should be a deliberate act, not chatter.
+localStorage mirror + server sync — rejected: two copies of the
+truth, the classic sync-bug factory. Confirm-on-every-save (no
+staleness check, zero server logic) — seriously considered, rejected
+after working through the UX: commits and branch switches are
+genuinely rare, but the Save button is muscle memory, and this
+model's own crash risk *rewards* saving often — an always-on dialog
+punishes the safe habit and trains a click-through reflex that
+defeats the warning in the one moment it matters. The feared
+"version maintenance" cost of the staleness check dissolved on
+inspection: one column and one comparison, no version history. A
+custom save-&-close dialog at tab close — impossible: browsers only
+show their own generic prompt there, and firing a save call from a
+close handler is unreliable, which is exactly why nothing writes at
+close.
+
+**The reasoning:** UX is the bar this app is judged on (product
+owner's framing), and the dialog rule follows from it: a dialog must
+be rare and truthful or it becomes noise. Accepted residual risk,
+stated plainly: a crash or power cut loses everything since the last
+explicit moment — the price of explicit saves, shrunk by a visible
+dirty indicator that nudges frequent saving.
+
+**What I deliberately cut:** Any write at tab close. Autosave in any
+form. Version history of working states — commits are the history.
