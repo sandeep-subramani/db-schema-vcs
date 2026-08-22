@@ -32,6 +32,14 @@ All from repo root (npm workspaces: engine/, server/, client/):
 - Work in small steps. Before any multi-file change, show a short
   plan and wait for my go.
 - At session start, read PLAN.md to see where we are.
+- Keep threads small, context isolated. At every checkpoint
+  (task done, commit suggested), check: does the next task depend on
+  anything that lives only in this thread's context? If not, say so
+  and suggest switching to a fresh chat instance. Before suggesting,
+  ensure everything needed across instances is written down where it
+  belongs (PLAN.md status, decisions.md entries, NOTES.md
+  explanations, rules here); a thread's context must never be the
+  only home of something a future thread needs.
 - If our working rules change, update this file so the next session
   knows.
 
