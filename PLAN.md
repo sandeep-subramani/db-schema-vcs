@@ -30,9 +30,12 @@ scope change gets a decisions.md entry.
   workflow running our checks — stretch item, day 4–5 if time.
 
 ## Day 1 — schema core
-- [ ] Schema model: tables, columns, types, nullability, primary
-      keys, foreign keys (decisions.md #3); snapshot format tolerates
-      missing fields, diff = list of typed changes
+- [x] Schema model: tables, columns, types (own generic vocabulary,
+      decisions.md #9), nullability, text length, unique constraints
+      (decisions.md #10), primary keys (table-level), foreign keys
+      pointing at any solely-unique column (decisions.md #3, #10);
+      snapshot format tolerates missing fields, diff = list of typed
+      changes (diff part lands day 2)
 - [ ] Schema input: visual editor + JSON import/export
       (decisions.md #4) + seed example schema
 - [ ] Branching + history (decisions.md #7): create branch from any
@@ -48,17 +51,24 @@ scope change gets a decisions.md entry.
 ## Day 3 — merge
 - [ ] Three-way merge: auto-merge changes that don't overlap
 - [ ] Conflict detection: same column retyped both sides, rename
-      collisions, FK added to a table the other branch dropped
+      collisions, FK added to a table the other branch dropped,
+      unique removed while the other branch adds an FK targeting it
+      (decisions.md #10)
 - [ ] Merge / conflict-resolution UX v1 + tests
 
 ## Day 4 — product pass
 - [ ] First-run experience, empty states, human error messages
 - [ ] Readability polish on diff and merge views
+- [ ] Paste-SQL import — committed scope, no longer stretch
+      (decisions.md #8): parser lib needs dependency approval;
+      dialect type audit + mapping rows per decisions.md #9
 - [ ] Stretch roadmap, in priority order (decisions.md #3, #4):
-      1. paste-SQL import (top priority — parser lib needs approval)
-      2. migration SQL output (decisions.md #6 — stretch only)
-      3. column defaults, unique constraints, indexes (~2–4h each,
-         additive)
+      1. migration SQL output (decisions.md #6 — stretch only)
+      2. column defaults, indexes (~2–4h each, additive; single-col
+         unique already in committed scope, decisions.md #10)
+      3. composite unique constraints, UNIQUE(a, b) — needs a
+         table-level constraint list, likely pairs with composite
+         FKs (decisions.md #10)
       4. editor-operation rename hints layered on snapshot diff
          (decisions.md #5) — re-rank if it should sit higher
       5. update-branch-from-parent merge direction (decisions.md #7)

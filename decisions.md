@@ -292,3 +292,129 @@ product requires.
 straight into main) — they reintroduce ancestor computation, the
 exact cost the tree model avoids. Rebase in any form — out of scope
 entirely, not deferred.
+
+---
+
+## 8. SQL import — promoted from stretch to committed scope
+
+**The decision:** Paste-SQL import moves from top-ranked stretch
+item (decisions.md #4) to committed scope: it ships before day 5.
+Day-1 design treats it as certain — the engine speaks only our
+canonical types, and dialect-type translation is a data table at the
+import boundary, so small enabling choices are made now rather than
+retrofitted.
+
+**The alternatives:** Keeping it stretch — rejected because "getting
+a real schema in" is closer to minimum-viable than any deferred
+column attribute; a schema VCS you can't feed an existing schema
+demos as a toy.
+
+**The reasoning:** The promotion changes planning, not architecture:
+decision #4 already shaped the import as an adapter at the boundary
+(parse SQL → emit our JSON shape → reuse existing validation), so
+committing to it costs nothing today and roughly 0.5–1 day when
+built. The parser-library dependency approval comes due at build
+time, per the no-new-dependency rule.
+
+**What I deliberately cut (deferred):** Choosing the target
+dialect(s). Postgres-first is the working assumption; the call is
+made when the import work is scheduled, and each dialect beyond the
+first is its own cost (type audit + mapping rows, per decision #9).
+
+---
+
+## 9. Type system — own generic vocabulary, strict-equivalence dialect mapping
+
+**The decision:** Column types use our own plain-language vocabulary,
+copied from no SQL dialect — understandability to the user is the
+first priority. Day-1 list: whole number (small / regular / large),
+decimal number (exact), floating point (approximate), text (optional
+length limit), true/false, date, time, date & time, unique ID,
+binary data. Dialect types resolve to canonical types through a
+mapping table with a strict rule: two dialect types collapse into
+one canonical type only when they are genuinely equal by definition
+and properties (MySQL INT and Postgres integer); a type that differs
+even slightly gets its own isolated canonical type. The mapping is
+extended lazily — each dialect's full type audit happens when that
+dialect's SQL import is actually built, not upfront. Text length is
+a per-column attribute sitting beside nullable (absent = no limit),
+not part of the type value. Primary keys are table-level (a list of
+column names), so composite keys work.
+
+**The alternatives:** (a) Postgres-named vocabulary — rejected: ties
+the UI's language to one vendor, and buys nothing since a
+normalization table is needed anyway (real SQL says INT, int4,
+SERIAL). (b) Coarse vocabulary that merges near-equal types —
+rejected as lossy: an import that collapses TINYINT and BIGINT into
+one "integer" can't re-export faithfully, and cross-dialect diffs
+would lie about sameness. (c) Length baked into the type value
+(text(255)) — rejected: as a sibling attribute, "length changed" is
+its own typed change in the diff, distinct from "type changed" —
+finer-grained, and the same additive path defaults/uniques will use
+later. (d) Upfront audit of every dialect's types — rejected: days
+of research that can't be verified until an import exists to test
+against.
+
+**Accepted tradeoffs:** The type dropdown grows as dialects are
+audited, since near-duplicates stay distinct — fidelity chosen over
+a minimal list. Mixed-origin histories (form commit, then SQL-import
+commit) show two types as identical only when the map says they
+truly are; near-matches surface as a type difference, which is
+honest but may read as noise. The merge engine must catch
+cross-attribute invalid combinations (branch A retypes a column away
+from text while branch B changes its length) — a named day-3 test
+case.
+
+**What I deliberately cut:** Nothing beyond the lazy application —
+no mapping rows exist until a dialect import is scheduled.
+
+---
+
+## 10. Unique constraints in scope now; FK rule matches real databases
+
+**The decision:** Single-column unique constraints join committed
+scope immediately — pulled out of the deferred trio from decision #3
+(defaults and indexes stay deferred). Modeled as a per-column
+boolean beside nullable; `unique: false` is normalized to absent so
+stored snapshots have one canonical spelling. With uniqueness
+available, the foreign-key target rule becomes what real databases
+enforce: an FK must point at a column that is unique *on its own* —
+either the target table's entire primary key is exactly that column,
+or the column is marked unique. One column out of a composite
+primary key is not a valid target.
+
+**The alternatives:** (a) Keep the initial FK-targets-PK-only rule —
+rejected: it forbids the legitimate FK-to-unique-column pattern
+(e.g. referencing users.email), and inspection showed it was also
+*looser* than real databases in another direction — it accepted an
+FK pointing at one column of a composite PK, which doesn't identify
+a row. Wrong in both directions, so "stricter but safe" wasn't true.
+(b) Table-level constraint list supporting composite uniques
+(UNIQUE(a,b)) — rejected for committed scope now: our FK model is
+single-column, so a composite unique has nothing to couple to; it
+roughly doubles the cost for a feature nothing else can use yet.
+
+**The reasoning:** Cost measured at ~45 minutes now (model field,
+validator rule, tests) plus ~1h riding along work already planned
+(diff: one more typed change like nullable's; merge: same-column
+conflict machinery plus one new cross-table case; UI: one toggle).
+That's the low end of #3's 2–4h-per-feature estimate because unique
+is a boolean — defaults and indexes are structurally bigger and stay
+deferred. No rework: the tolerant snapshot format means old
+snapshots without the field stay valid, proving the extensibility
+commitment #3 made.
+
+**Amendment to #3:** its claim that the deferred trio adds "diff
+length, not new conflict types" was wrong for unique: the FK
+coupling adds one cross-table conflict (branch A removes unique from
+a column while branch B adds an FK pointing at it) — named as a
+day-3 test case alongside FK-to-dropped-table.
+
+**What I deliberately deferred (not cut):** Composite unique
+constraints (UNIQUE(a, b)) — normal databases offer them, so the app
+needs them eventually; they go on the stretch roadmap, picked up if
+time permits. Deferred rather than committed because they need a
+table-level constraint list (a structural addition, not a column
+boolean) and our single-column FK model gives them nothing to couple
+to yet — when picked up, they likely pair with composite FKs.
+Defaults and indexes remain on the stretch roadmap unchanged.
