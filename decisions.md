@@ -668,3 +668,72 @@ UI disables branching until it exists and says why.
 **What I deliberately cut:** Branching from a zero-commit branch
 (clear 409 from the API; disabled button with the reason in the UI).
 The full shared-ancestry history view, as above.
+
+---
+
+## 17. Confirmed renames cascade to PK/FK references — the diff shows one change, not three
+
+**The decision:** When a rename is confirmed (auto-matched or
+user-accepted), the diff reports exactly one change — the rename.
+Primary keys and foreign keys that point at the renamed table or
+column are not reported as changed: the diff compares them *through*
+the rename (respelling the old side with the new names first), and
+`applyDiff` rewrites those references automatically when it replays
+the rename. A PK/FK change only appears in the diff when something
+changed beyond the spelling — e.g. the key genuinely gained or lost
+a column, or an FK moved to a different target.
+
+**The alternatives:** (a) Report the ripple literally — a column
+rename on a PK column also emits "primary key changed" and every
+referencing FK as dropped + re-added. Rejected: it reports one edit
+as three, and the extra two are lies — nothing about those keys
+changed, they still point at the same column; a diff view full of
+fake FK churn buries the real changes. (b) Emit the ripple as
+explicit-but-flagged "follow-up" changes so apply stays a dumb
+replayer. Rejected: two representations of one fact drift apart;
+the flag would exist only to be ignored by every reader.
+
+**The reasoning:** This matches what a real database does — renaming
+a column doesn't drop your foreign keys, references follow the
+object, not its spelling. Diff and apply agree by contract (diff
+omits what apply rewrites), and the roundtrip tests
+(apply(diff(A,B), A) = B, including FK-target renames) pin that
+contract down so neither side can drift alone.
+
+**What I deliberately cut:** Nothing user-visible; the cost is that
+diff.ts and apply.ts must stay in step, which is exactly what the
+roundtrip test suite exists to enforce.
+
+---
+
+## 18. Column and table order is not versioned — a pure reorder diffs as "no change"
+
+**The decision:** The diff matches tables and columns by name, never
+by position. Reordering columns in the editor (or a JSON import that
+lists the same tables in a different order) produces an empty diff,
+and the merge will therefore never see or conflict on ordering.
+Column order is still *kept* — snapshots store arrays and the editor
+and applyDiff preserve their order — it just isn't a versioned,
+diffable property.
+
+**The alternatives:** (a) Treat order as a diffable property with
+"column moved" changes. Rejected: order carries no meaning in the
+relational model — no constraint, type, or query result depends on
+it — so a reorder "change" would be noise in the diff view and a
+source of pointless merge conflicts (both branches touch the same
+table, orders differ, conflict over nothing). (b) Canonicalize
+storage (sort columns alphabetically) so the question disappears.
+Rejected: authors lay out tables deliberately (id first, timestamps
+last); destroying that layout to simplify the diff punishes the
+editor experience for no diff benefit.
+
+**The reasoning:** Version the things that change what the schema
+*means*; preserve but don't diff the things that only change how it
+*reads*. Roundtrip equality in the tests is checked order-insensitively
+to match ("same schema" = same tables/columns/constraints,
+whatever the listing order).
+
+**What I deliberately cut:** "Column moved" as a change type, and
+any UI affordance implying a reorder is a commit-worthy edit. If a
+future SQL export needs stable column order, snapshots already keep
+it — nothing is lost, it's just not compared.

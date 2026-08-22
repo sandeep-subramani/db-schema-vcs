@@ -143,3 +143,32 @@ Entry format:
   frozen while any dialog is up, and every way of leaving unsaved
   edits — including creating a branch from a different source — asks
   save/discard/cancel first.
+
+- **[2026-08-23] Diff engine (`diffSchemas` + `applyDiff`)** — The
+  diff compares two schema snapshots the way you'd compare two
+  printed pages side by side: tables matched up by name, then columns
+  inside them, and every difference becomes one typed change ("column
+  email: maxLength 255 → 500"). The tricky part is that a snapshot
+  can't tell a rename from a drop-plus-add — both leave the same two
+  pages. So dropped and added things are scored against each other
+  (name similarity via edit distance, same type, same shape): a pair
+  that matches on everything and has clearly similar names becomes a
+  rename automatically; a plausible-but-unsure pair becomes a
+  *question* the UI asks the user; a poor pair stays an honest
+  drop+add. Crucially, the change list is a complete recipe even
+  while questions are open (pending pairs ride as drop+add), and
+  answers flow back in as plain data — `diffSchemas(A, B, decisions)`
+  — keeping the engine a pure function. Confirmed renames cascade
+  like they do in a real database: primary keys and foreign keys that
+  point at the renamed thing follow it silently instead of showing up
+  as fake changes. `applyDiff` is the other half: it replays a change
+  list onto a schema, and the test suite's core guarantee is
+  apply(diff(A,B), A) equals B — for every scenario, whichever way
+  each rename question was answered, in both directions. `applyDiff`
+  isn't a test helper: three-way merge (day 3) is "diff both branches
+  against the base, keep what doesn't collide, apply it" — this is
+  the apply in that sentence. Deliberate limits: renames are only
+  detected within one table (a column moving between tables is a
+  drop+add), a rename that also changed type/shape always asks rather
+  than auto-matches, and column order is not versioned — reordering
+  produces an empty diff.

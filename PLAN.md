@@ -51,9 +51,10 @@ scope change gets a decisions.md entry.
       example schema" button replaces auto-seed (decisions.md #14)
 
 ## Day 2 — diff engine
-- [ ] Diff: snapshot comparison + rename heuristics + user
+- [x] Diff: snapshot comparison + rename heuristics + user
       confirmation (decisions.md #5), incl. the rename-detection path
-- [ ] Engine tests: apply(diff(A,B), A) equals B, and friends
+- [x] Engine tests: apply(diff(A,B), A) equals B, and friends
+      (+ applyDiff itself — needed by day-3 merge, not just tests)
 - [ ] Diff view v1 in the UI
 
 ## Day 3 — merge
