@@ -62,3 +62,32 @@ Entry format:
   Why now: unique is nullable's structural twin, so it cost ~45
   minutes and proves the "extensions are additive" design promise
   from decisions.md #3.
+
+- **[2026-08-22] Visual schema editor + JSON import/export + seed** —
+  The app now opens on a real editor instead of a health check: a
+  seeded web-shop schema (users, products, orders, order_items —
+  chosen because it exercises every model feature: composite PK,
+  FKs, a unique non-PK column, text lengths, a nullable column).
+  Layout is master–detail: tables in a sidebar, the selected one
+  edited in a grid — name, type dropdown (our own vocabulary), PK /
+  nullable / unique checkboxes, text length, plus a foreign-key
+  section whose target dropdown only ever offers legal targets
+  (same type, unique on its own). That's the "invalid input is
+  structurally impossible" promise from decisions.md #4: dropdowns
+  and checkboxes can't spell a broken schema, and the two toggles
+  that could combine illegally (PK + nullable) disable each other.
+  Every edit is a pure function in `client/src/schema/edits.ts`
+  that takes the current snapshot and returns a new valid one;
+  destructive edits also return a plain-language list of collateral
+  (foreign keys they had to remove), which the UI shows in a
+  confirm dialog *before* applying — and because snapshots are
+  immutable, an undo stack (Ctrl/Cmd+Z + a toast with an Undo
+  button) is just keeping the old ones. One sweep function
+  re-checks all FKs after any edit using the same rules as the
+  engine validator, so there's a single place that decides what a
+  broken FK is; the tests assert every edit's output re-validates.
+  JSON import runs the engine's `validateSchema` and shows its
+  errors verbatim; export is the exact stored snapshot format, so
+  import(export(x)) is trivially x. The schema lives only in client
+  memory for now — the branching task (next) owns server-side
+  persistence, so nothing temporary was built (decisions.md #11).

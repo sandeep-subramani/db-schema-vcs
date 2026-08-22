@@ -418,3 +418,44 @@ table-level constraint list (a structural addition, not a column
 boolean) and our single-column FK model gives them nothing to couple
 to yet — when picked up, they likely pair with composite FKs.
 Defaults and indexes remain on the stretch roadmap unchanged.
+
+---
+
+## 11. Schema editor — client-held state, master–detail layout, cascade-with-confirm + undo
+
+**The decision:** Three calls shaping the day-1 visual editor. (1) The
+working schema lives in client memory for this task — no server
+persistence yet. (2) Layout is master–detail: a table list in a
+sidebar, the selected table edited in a wide column grid. (3)
+Destructive edits that would break references (deleting an FK's target
+column, un-uniquing a referenced column, growing a sole PK to
+composite) cascade: the dependent foreign keys are removed too, but
+never silently — a confirm dialog names each casualty before anything
+happens, and afterwards a toast offers Undo (a full undo stack rides
+along, Ctrl/Cmd+Z included, since immutable snapshots make it nearly
+free).
+
+**The alternatives:** (1) A minimal GET/PUT working-schema API now —
+rejected because the very next task (branching) owns "auto-saved
+working state" server-side and would rework that API days later;
+accepted cost: a refresh loses edits until branching lands. (2) A
+table-cards grid (whole schema on one surface, best for seeing FK
+relationships) and a single-column document layout (simplest) — both
+rejected for editing ergonomics: cards cramp the per-column controls,
+the document scrolls badly past a few tables. The cards idea isn't
+dead — it fits the diff view better than the editor. (3) Blocking the
+edit until the user removes dependents by hand — rejected as busywork
+on bigger schemas; allow-and-flag-invalid — rejected because it breaks
+decision #4's core promise that the editor cannot produce an invalid
+schema (every consumer would need to tolerate broken states).
+
+**The reasoning:** For (3), the cascade mirrors what real databases do
+with ON DELETE CASCADE on DDL, keeps every snapshot in the undo
+history a valid schema (so undo, diff, and later commit never meet a
+broken state), and the confirm + undo pair means the user is told
+before and can recover after — the two failure modes of cascading
+(surprise and regret) each get an answer.
+
+**What I deliberately cut:** Redo (undo-of-undo) — plain undo covers
+the recovery story; redo is bookkeeping with no demo value. Recording
+editor operations for rename hints stays cut per decision #5.
