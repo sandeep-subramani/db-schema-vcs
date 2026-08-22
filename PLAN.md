@@ -8,8 +8,8 @@ scope change gets a decisions.md entry.
 - [x] Hosting account + deploy authorization (Render, Singapore)
 
 ## Day 0 — decisions & scaffold
-- [ ] Resolve open decisions 1–5 (list in CLAUDE.md): options laid
-      out, my pick, each logged in decisions.md
+- [x] Resolve open decisions 1–5 (list in CLAUDE.md): options laid
+      out, my pick, each logged in decisions.md (#3–#7)
 - [x] Decision 6 (stack/deploy/tests) — decisions.md #2: Vite+React+TS,
       Express 5, Render + managed Postgres, Vitest
 - [x] Scaffold the app per stack decision; fill the Commands section
@@ -33,12 +33,15 @@ scope change gets a decisions.md entry.
 - [ ] Schema model: tables, columns, types, nullability, primary
       keys, foreign keys (decisions.md #3); snapshot format tolerates
       missing fields, diff = list of typed changes
-- [ ] Schema input per decision (editor / SQL / JSON) + seed example
-      schema
-- [ ] Create branch + switch branch (minimal model)
+- [ ] Schema input: visual editor + JSON import/export
+      (decisions.md #4) + seed example schema
+- [ ] Branching + history (decisions.md #7): create branch from any
+      branch (tree, parent recorded), switch branch, explicit commit
+      with message onto auto-saved working state
 
 ## Day 2 — diff engine
-- [ ] Diff per decided approach, including the rename-detection path
+- [ ] Diff: snapshot comparison + rename heuristics + user
+      confirmation (decisions.md #5), incl. the rename-detection path
 - [ ] Engine tests: apply(diff(A,B), A) equals B, and friends
 - [ ] Diff view v1 in the UI
 
@@ -51,10 +54,15 @@ scope change gets a decisions.md entry.
 ## Day 4 — product pass
 - [ ] First-run experience, empty states, human error messages
 - [ ] Readability polish on diff and merge views
-- [ ] Stretch (only if everything above is green): migration SQL
-      output or SQL import — whichever was deferred
-- [ ] Stretch roadmap (decisions.md #3, in priority order): column
-      defaults, unique constraints, indexes — each ~2–4h, additive
+- [ ] Stretch roadmap, in priority order (decisions.md #3, #4):
+      1. paste-SQL import (top priority — parser lib needs approval)
+      2. migration SQL output (decisions.md #6 — stretch only)
+      3. column defaults, unique constraints, indexes (~2–4h each,
+         additive)
+      4. editor-operation rename hints layered on snapshot diff
+         (decisions.md #5) — re-rank if it should sit higher
+      5. update-branch-from-parent merge direction (decisions.md #7)
+         — engine reused, cost is base-advance bookkeeping + tests
 
 ## Day 5 — ship
 - [ ] README: setup that works in one shot, short architecture sketch

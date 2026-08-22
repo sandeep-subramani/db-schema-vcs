@@ -121,3 +121,174 @@ which undercuts the whole pitch; not worth it under the timebox.
 Multiple SQL dialects — each one multiplies the type vocabulary and
 validation rules; one Postgres-flavored type set keeps the engine
 honest.
+
+---
+
+## 4. Schema input — visual editor front door, JSON side door; SQL import deferred as top stretch
+
+**The decision:** Primary input is a visual editor: add table / add
+column forms, type dropdown, nullable toggle, PK marker, FK defined
+by picking an existing table and column. JSON import/export rides
+along as a secondary path since the engine needs a JSON schema
+representation internally anyway — import is the same validation the
+API already runs on request bodies. Paste-SQL import is deferred but
+ranked as the **highest-priority stretch feature**, above the
+deferred schema features from decision #3, because "getting a schema
+in" is closer to minimum-viable than extra column attributes.
+
+**The alternatives:** (a) Paste-SQL as the primary input — rejected
+for day 1 because it needs a SQL parser: hand-writing one risks
+parser edge cases eating two of five days, and a library still costs
+a new dependency, AST-to-model mapping, graceful handling of
+unsupported statements, and an error-message UX for unbounded input.
+(b) JSON as the primary input — rejected as hostile: nobody has
+their schema in our invented format, so as a front door it amounts
+to hand-writing a config file. It stays as the power-user side door
+and doubles as the export format for free.
+
+**The reasoning:** The editor makes invalid input structurally
+impossible (a dropdown can't produce an unsupported type; the FK
+picker only offers tables that exist), eliminating the parse/error
+zoo entirely, and it plays to my frontend strength. Deferring SQL
+import carries no retrofit tax: it's an adapter at the boundary —
+parse SQL, emit the same JSON schema shape, reuse the existing
+validation and import path — and never touches engine, diff, merge,
+or storage. Its cost (~0.5–1 day with a parser library, dependency
+approval required then) is identical whether built on day 1 or day
+4. Note: dropping SQL *input* now does not make migration-SQL
+*output* (decision #5, still open) harder — generating SQL is string
+building; parsing is the hard direction.
+
+**What I deliberately cut:** Nothing beyond the deferral itself;
+seed example schema covers the demo gap until SQL import lands.
+
+---
+
+## 5. Diff approach — snapshot comparison + rename heuristics + user confirmation
+
+**The decision:** The diff engine compares two full schema
+snapshots, state against state. The ambiguous case (a column or
+table disappears and a similar one appears — rename, or drop+add?)
+is resolved by heuristics (same table, same type, similar shape →
+probably a rename) with a user-confirmation step whenever the
+heuristic isn't sure. Recorded editor operations as rename *hints*
+(the hybrid's extra layer) are deferred to the future — additive on
+top of this engine, not a rework of it.
+
+**The alternatives:** (a) Recorded edit operations as the diff — the
+visual editor logs every action ("renamed username → login_name"),
+and the diff is the log. Rejected because it only works with
+restrictions: it covers editor-made changes only. JSON-imported (and
+later SQL-imported) schemas arrive with no operation history, so
+snapshot comparison would have to be built anyway — two systems for
+one job. The diff is the core of a diff tool and has to work between
+any two versions regardless of origin. Also, if history is ever
+missing or wrong (import, a logging bug, an undo edge case) an
+operation log silently lies, while a snapshot diff at worst asks the
+user a question. (b) Hybrid upfront — rejected for now as extra work
+layered on A (a hint channel plus reconciliation between two sources
+of truth); kept as a future refinement since it's purely additive.
+
+**The reasoning:** Snapshot diff is the foundation in every
+scenario — both alternatives still need it. It keeps the engine pure
+functions of two states, works with the snapshot storage we already
+chose, and is honest about ambiguity instead of hiding it. The
+confirmation step doubles as UX: "diff proposes, human confirms
+renames" is a readable, demoable moment that fits the "diff view IS
+the product" bar.
+
+**What I deliberately cut:** Operation logging entirely for now — no
+half-built hint plumbing until the hybrid layer is actually
+scheduled.
+
+---
+
+## 6. Merge output — merged schema only; migration SQL as stretch
+
+**The decision:** A successful merge produces the merged schema (the
+new state of the target branch). Migration SQL — the `ALTER TABLE`
+statements that would turn the pre-merge database into the merged
+one — is not committed scope. It sits on the day-4 stretch roadmap,
+welcome only if everything committed lands early.
+
+**The alternatives:** (a) Cutting migration SQL entirely — rejected
+because the deferral is free: generation consumes the diff's typed
+change list and emits strings, touching no engine internals, so it
+costs the same on day 4 as on day 1 and there's no reason to close
+the door. (b) Committing it as day-3/4 scope — rejected because the
+product is the diff and the version history: showing what changed
+across every keyword and identifier a schema contains. Migration SQL
+is an add-on onto that product, not part of it, and its real cost is
+more than the ~0.5–1 day of generation — subtly wrong SQL is worse
+than none (people paste it into live databases), so committing it
+means committing to proper ordering/FK/type-change tests too. Not
+worth it inside a 5-day window.
+
+**The reasoning:** Days 3–4 stay focused on merge correctness and
+the conflict UX, which our own UX bar names as the product. The
+choice of *which* stretch item fills day 4's realistic single slot
+(SQL import, currently ranked first, vs migration SQL) is deferred
+to day 4 itself, when we'll know how the week actually went.
+
+**What I deliberately cut:** Any commitment to migration-SQL
+correctness testing for now — it's part of the stretch item's cost
+if and when it's picked up, not a standing obligation.
+
+---
+
+## 7. Branch model — tree of branches, merge into parent only, explicit commits
+
+**The decision:** Branches form a tree: any branch can be created
+from any branch (nesting allowed), and each branch records its
+parent plus the snapshot it was created from. Merging goes in one
+direction only — a branch merges into its parent (for branches off
+main, that's main; a nested branch merges into the branch it came
+from, never skip-level into main). Within a branch, versions are
+explicit commits: edits accumulate in an auto-saved working state,
+and "commit" (with a message) stamps a snapshot into the branch's
+linear history. The reverse merge direction — parent into branch,
+i.e. "update a stale branch from its parent" — is deferred to the
+future roadmap; the merge engine already does that work (same
+three-way merge, other direction), the deferred cost is the base
+bookkeeping (after absorbing the parent, the branch's base must
+advance, or the final merge re-flags already-resolved conflicts).
+
+**The alternatives:** (a) Flat model (branches off main only) —
+rejected because branch-off-branch is a required feature. (b) Full
+graph (arbitrary merge directions) — rejected after working through
+where its cost actually lives. The three-way merge engine itself is
+topology-independent (given base + two tips it doesn't care about
+the graph), but arbitrary-direction merges force the *base* to be
+computed instead of read: the most recent common ancestor of two
+tips in a history graph. That means parent pointers on every
+snapshot (two for merge commits), an ancestor-search step before
+every merge, and the criss-cross case — two equally recent common
+ancestors with no right pick, which git solves by recursively
+merging the bases themselves. Feeding a robust engine the wrong base
+produces confidently wrong answers: changes from before the real
+divergence appear in both diffs as phantom changes, renames get
+mis-inferred, conflicts get reported that never existed. On top of
+the engine: the test matrix roughly doubles (every conflict property
+per topology shape) and the branch UI becomes a DAG visualization —
+the hardest screen in every git GUI — competing directly with the
+diff/merge views our UX bar names as the product. Realistic total:
+2–3 extra days. The tree model delivers the visible feature
+(nesting) at near-flat cost because the base stays a stored field:
+zero ambiguity, no graph search, and history a branch list can show
+by simple indentation. (c) For versions: current-state-only rejected
+(no history to show — history is half the product's goal);
+auto-version-every-save rejected (hundreds of message-less versions
+make history noise, undermining the readability it seems to serve).
+
+**The reasoning:** Explicit commits give a real, demoable timeline —
+diff between any two versions falls out of the snapshot-diff engine
+for free (decisions.md #5), and commit messages make the history
+readable. Merge-into-parent-only keeps every merge's base a single
+stored snapshot, preserving the correctness guarantees the whole
+engine is built on, while still allowing the branch nesting the
+product requires.
+
+**What I deliberately cut:** Skip-level merges (nested branch
+straight into main) — they reintroduce ancestor computation, the
+exact cost the tree model avoids. Rebase in any form — out of scope
+entirely, not deferred.

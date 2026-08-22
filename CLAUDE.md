@@ -38,15 +38,6 @@ All from repo root (npm workspaces: engine/, server/, client/):
 ## Decision state
 - Made decisions live in decisions.md (repo root) — read it when you
   need history or context. If it's not there, it wasn't decided.
-- Still OPEN — never assume these, always ask me:
-  1. Schema input: visual editor vs paste-SQL vs JSON import.
-  2. Diff approach: snapshot comparison + rename heuristics + user
-     confirmation vs recorded edit operations vs hybrid.
-  4. Merge output: merged schema only vs also migration SQL.
-  5. Branch model: main → branch → merge back only? No nesting or
-     rebase?
-- When one resolves: full entry in decisions.md, then delete it from
-  this list.
 
 ## decisions.md format
 Every meaningful decision gets logged there as it happens: the
