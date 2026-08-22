@@ -626,3 +626,45 @@ dirty indicator that nudges frequent saving.
 
 **What I deliberately cut:** Any write at tab close. Autosave in any
 form. Version history of working states — commits are the history.
+
+---
+
+## 16. Branch creation follows git: split at the last commit, carry the working changes
+
+**The decision:** Creating a branch requires the source branch to
+have at least one commit — git's own rule (you can't branch an empty
+repo). The new branch splits at the source's latest commit: that
+snapshot becomes the stored merge base (decisions.md #7), and a copy
+of that commit — original message, author, timestamp — becomes the
+new branch's first history entry, so every branch's history shows
+where it split. The source's saved working state, including
+saved-but-uncommitted changes, carries over as the new branch's
+working copy — exactly like git carrying a dirty working tree
+through `git switch -c`: start work on the wrong branch, branch off,
+commit it there. The everyday flow the product owner spelled out
+when picking this: branch off a branch with pending work, commit,
+and the new branch shows two commits — the split point and the
+carried work.
+
+**The alternatives:** (a) Branch from the source's saved working
+state ("branch from what you see") — built first, then flipped by
+the product owner: the tool's audience uses git daily, and branching
+should mean what their fingers already expect; the no-edge-case rule
+wasn't worth the confusion, and its zero-commit fallback made some
+merge bases states nobody ever committed. (b) Showing the source's
+full ancestor history in the new branch, as `git log` would —
+rejected for now: commits live in per-branch linear lists (#7), so a
+combined view means walking parent branches; it's a read-only
+feature that can be added later with no schema change. The copied
+split-point commit is the honest middle: you see where the branch
+started, not the source's whole past.
+
+**The reasoning:** Familiarity beats cleverness — matching git means
+nobody relearns what "branch" means in their own repos. The
+one-commit requirement composes with the first-commit gate (#14),
+which already funnels every new repo toward that first commit; the
+UI disables branching until it exists and says why.
+
+**What I deliberately cut:** Branching from a zero-commit branch
+(clear 409 from the API; disabled button with the reason in the UI).
+The full shared-ancestry history view, as above.

@@ -57,6 +57,13 @@ function checkNoUnknownFields(
   }
 }
 
+// Postgres text/jsonb reject NUL bytes and lone surrogate halves, so
+// a "valid" schema containing them couldn't be stored; the length cap
+// keeps names displayable everywhere a name is shown.
+// eslint-disable-next-line no-control-regex -- matching control chars is the point
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+const LONE_SURROGATE = /\p{Surrogate}/u;
+
 function readName(
   value: unknown,
   where: string,
@@ -72,6 +79,16 @@ function readName(
   }
   if (value !== value.trim()) {
     errors.push(`${where}: name "${value}" has leading or trailing spaces`);
+    return undefined;
+  }
+  if (value.length > 64) {
+    errors.push(`${where}: name is longer than 64 characters`);
+    return undefined;
+  }
+  if (CONTROL_CHARS.test(value) || LONE_SURROGATE.test(value)) {
+    errors.push(
+      `${where}: name contains control characters or broken unicode, which can't be stored`,
+    );
     return undefined;
   }
   return value;
@@ -221,9 +238,12 @@ function readColumn(
     if (
       typeof raw.maxLength !== "number" ||
       !Number.isInteger(raw.maxLength) ||
-      raw.maxLength < 1
+      raw.maxLength < 1 ||
+      raw.maxLength > 1_000_000
     ) {
-      errors.push(`${where}: "maxLength" must be a whole number of 1 or more`);
+      errors.push(
+        `${where}: "maxLength" must be a whole number between 1 and 1,000,000`,
+      );
     } else if (type !== undefined && type !== "text") {
       errors.push(
         `${where}: "maxLength" only applies to text columns (this one is "${type}")`,

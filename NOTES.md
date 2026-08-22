@@ -91,3 +91,55 @@ Entry format:
   import(export(x)) is trivially x. The schema lives only in client
   memory for now — the branching task (next) owns server-side
   persistence, so nothing temporary was built (decisions.md #11).
+
+- **[2026-08-22] Persistence + users/repos + branching & commits** —
+  The app became multi-user and permanent in one move. Server side,
+  three layers. (1) A ~60-line migration runner: numbered `.sql`
+  files build the app's own Postgres tables at every boot, tracked in
+  a bookkeeping table so each runs once — the filing cabinet builds
+  its missing drawers before anything gets filed, identically on a
+  laptop and on Render (decisions.md #12). (2) `store.ts`, the only
+  file that talks SQL. Every repo-scoped function takes the acting
+  username and does the membership check inside its own query — there
+  is no unscoped variant to call by mistake, and "not found" and "not
+  yours" are the same null so repo ids can't be probed. The staleness
+  guard is one integer: a save says "I loaded rev N", the UPDATE only
+  lands if the row still is rev N, and a miss returns who saved and
+  when (decisions.md #15). Commit reuses that same save inside a
+  transaction and stamps the snapshot into `commits` — save and stamp
+  can't be split by a concurrent writer. Branching follows git
+  (decisions.md #16): the source needs a commit, the new branch
+  splits at that latest commit (which is copied in as its first
+  history entry and stored as the merge base of decisions.md #7),
+  and the source's saved-but-uncommitted changes carry over into the
+  new branch's working copy — like git carrying your dirty working
+  tree through `git switch -c`, so pending work can be committed on
+  the branch it belongs to. (3) `api.ts`, the boundary: parses ids,
+  names, revs,
+  runs every incoming snapshot through the engine's `validateSchema`,
+  and maps store results to honest status codes and human error
+  messages. Client side, three screens with no router (who you are ×
+  which repo is open, both remembered in localStorage): the username
+  gate (identity = a claimed name sent as a header on every call —
+  no cookies, decisions.md #13), the repo list (+ New repo up top),
+  and the repo screen — branch bar, the existing editor, and a
+  history panel. Dirty is "the schema object on screen is not the
+  object we last saved" (snapshots are immutable, so reference
+  equality is exact — undo back to the saved one and you're clean
+  again). Saving, switching with unsaved edits, committing, and the
+  someone-saved-first case each get their own dialog; tab close with
+  unsaved edits triggers the browser's native prompt, and nothing
+  auto-writes, ever (decisions.md #15). A brand-new branch with no
+  commits and no tables opens on the first-commit gate — editor /
+  JSON / disabled "coming soon" SQL door, example schema one explicit
+  click away (decisions.md #14). The whole flow was driven end to end
+  in a real headless browser (screenshots in the session log) on top
+  of 75 unit/API tests against real Postgres. A multi-agent
+  adversarial review then hardened the edges: ids/revs are capped at
+  Postgres's integer range and names reject NUL bytes and broken
+  unicode (so no "valid" input can 500 a save), oversized bodies get
+  an honest 413, branch loads carry a ticket so a slow response can
+  never put one branch's schema on screen labeled as another, undo is
+  frozen while any dialog is up, and every way of leaving unsaved
+  edits — including creating a branch from a different source — asks
+  save/discard/cancel first.

@@ -256,9 +256,9 @@ describe("validateSchema — structural errors", () => {
       errorsOf({
         tables: [{ name: "t", columns: [{ name: "c", type: "text", maxLength }] }],
       })[0];
-    expect(bad(0)).toContain("whole number of 1 or more");
-    expect(bad(2.5)).toContain("whole number of 1 or more");
-    expect(bad("255")).toContain("whole number of 1 or more");
+    expect(bad(0)).toContain("whole number between 1 and 1,000,000");
+    expect(bad(2.5)).toContain("whole number between 1 and 1,000,000");
+    expect(bad("255")).toContain("whole number between 1 and 1,000,000");
   });
 
   it("rejects maxLength on a non-text column", () => {
@@ -459,6 +459,50 @@ describe("validateSchema — semantic errors", () => {
     });
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("unknown type");
+  });
+});
+
+describe("validateSchema — unstorable input", () => {
+  // Postgres rejects NUL bytes in text and lone surrogates in jsonb;
+  // the validator must catch them so no "valid" schema can 500 a save.
+  it("rejects control characters in names", () => {
+    const errors = errorsOf({
+      tables: [{ name: "a\u0000b", columns: [] }],
+    });
+    expect(errors[0]).toContain("control characters or broken unicode");
+  });
+
+  it("rejects lone surrogate halves in names", () => {
+    const errors = errorsOf({
+      tables: [
+        {
+          name: "t",
+          columns: [{ name: "a\ud800b", type: "text", nullable: false }],
+        },
+      ],
+    });
+    expect(errors[0]).toContain("control characters or broken unicode");
+  });
+
+  it("caps name length at 64 characters", () => {
+    const errors = errorsOf({
+      tables: [{ name: "x".repeat(65), columns: [] }],
+    });
+    expect(errors[0]).toContain("longer than 64 characters");
+  });
+
+  it("caps maxLength at 1,000,000", () => {
+    const errors = errorsOf({
+      tables: [
+        {
+          name: "t",
+          columns: [
+            { name: "c", type: "text", nullable: false, maxLength: 1_000_001 },
+          ],
+        },
+      ],
+    });
+    expect(errors[0]).toContain("between 1 and 1,000,000");
   });
 });
 

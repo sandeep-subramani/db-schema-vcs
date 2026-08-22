@@ -1,14 +1,21 @@
 import { useEffect } from "react";
 
-// Post-edit notification with undo — the second half of the cascade
-// UX: confirm names the collateral up front, the toast offers the way
-// back after.
+export interface ToastData {
+  id: number;
+  message: string;
+  /** Show the Undo action — only for edits the undo stack can revert. */
+  undoable: boolean;
+}
+
+// Post-action notification. For destructive edits it's the second
+// half of the cascade UX (confirm names the collateral up front, the
+// toast offers the way back after); for save/commit it just reports.
 export function Toast({
   toast,
   onUndo,
   onDismiss,
 }: {
-  toast: { id: number; message: string } | null;
+  toast: ToastData | null;
   onUndo: () => void;
   onDismiss: () => void;
 }) {
@@ -22,9 +29,11 @@ export function Toast({
   return (
     <div className="toast" role="status">
       <span>{toast.message}</span>
-      <button type="button" className="toast-undo" onClick={onUndo}>
-        Undo
-      </button>
+      {toast.undoable && (
+        <button type="button" className="toast-undo" onClick={onUndo}>
+          Undo
+        </button>
+      )}
       <button type="button" className="toast-close" aria-label="Dismiss" onClick={onDismiss}>
         ✕
       </button>
