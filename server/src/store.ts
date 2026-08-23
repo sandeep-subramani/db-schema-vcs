@@ -62,7 +62,21 @@ export type SaveResult =
 
 export type CommitResult =
   | { ok: true; commit: CommitMeta; rev: number; savedAt: string }
-  | { ok: false; conflict: SaveConflict };
+  | { ok: false; conflict: SaveConflict }
+  /** The commit carried a merge marker that doesn't check out — see
+   *  commitWorking. Nothing was written. */
+  | { ok: false; invalidMerge: true };
+
+/**
+ * Bookkeeping a merge commit carries (decisions.md #20): which branch
+ * was merged in, and which of its commits was the merged tip. At
+ * commit time the source branch's stored base advances to that
+ * commit's snapshot, in the same transaction as the commit itself.
+ */
+export interface MergeMarker {
+  sourceBranchId: number;
+  mergedCommitId: number;
+}
 
 /** True for Postgres unique-constraint violations (duplicate names). */
 export function isUniqueViolation(error: unknown): boolean {
@@ -421,6 +435,16 @@ function rowToCommit(row: {
  * the working state is saved (staleness-checked like any save) and
  * the same snapshot becomes a commit row. One round trip, no gap
  * where a concurrent save could slip between them.
+ *
+ * A merge commit (decisions.md #20) additionally advances the merged
+ * branch's stored base to the merged tip's snapshot — same
+ * transaction, so history never says "merged" without the base
+ * moving. The marker must check out — the source branch must be a
+ * direct child of this branch and the merged commit must be on it —
+ * or the whole commit is refused and nothing is written. The merged
+ * commit need not still be the source's newest one: if the source
+ * gained commits since the merge was computed, what was merged is
+ * still exactly that older tip, and the base must say so.
  */
 export async function commitWorking(
   pool: pg.Pool,
@@ -429,6 +453,7 @@ export async function commitWorking(
   message: string,
   snapshot: Schema,
   expectedRev: number,
+  merge?: MergeMarker,
 ): Promise<CommitResult | null> {
   const client = await pool.connect();
   try {
@@ -449,6 +474,20 @@ export async function commitWorking(
        VALUES ($1, $2, $3, $4) RETURNING id, branch_id, message, author, created_at`,
       [branchId, message, JSON.stringify(snapshot), username],
     );
+    if (merge) {
+      const advanced = await client.query(
+        `UPDATE branches b
+         SET base_snapshot = c.snapshot
+         FROM commits c
+         WHERE b.id = $2 AND b.parent_branch_id = $1
+           AND c.id = $3 AND c.branch_id = b.id`,
+        [branchId, merge.sourceBranchId, merge.mergedCommitId],
+      );
+      if (advanced.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return { ok: false, invalidMerge: true };
+      }
+    }
     await client.query("COMMIT");
     return {
       ok: true,
@@ -505,4 +544,122 @@ export async function listCommits(
     [branchId],
   );
   return result.rows.map(rowToCommit);
+}
+
+// --- merge ------------------------------------------------------------
+
+/** One branch's side of a merge: the branch, its latest commit, and
+ *  its saved working state (rev included, so the client can land the
+ *  merge with the ordinary staleness-checked save). */
+export interface MergeSideState {
+  branch: Branch;
+  tip: CommitDetail;
+  working: {
+    snapshot: Schema;
+    rev: number;
+    savedBy: string | null;
+    savedAt: string | null;
+  };
+}
+
+/**
+ * Everything a merge needs, read in one request: the stored base
+ * (decisions.md #7) plus both sides' tips and working states. The
+ * merge itself runs in the client (same reasoning as the diff,
+ * decisions.md #19 — rename answers and conflict picks are
+ * interactive); the server just hands over the three snapshots and
+ * the facts needed to check the git-strict preconditions (#20).
+ */
+export interface MergeContext {
+  source: MergeSideState;
+  parent: MergeSideState;
+  base: Schema;
+}
+
+export type MergeContextResult =
+  | { ok: true; context: MergeContext }
+  | { ok: false; reason: "no-parent" };
+
+const MERGE_BRANCH_SELECT = `
+  SELECT b.id, b.repo_id, b.name, b.parent_branch_id, b.created_at,
+         b.base_snapshot, b.working_snapshot, b.working_rev,
+         b.working_saved_by, b.working_saved_at,
+         (SELECT count(*) FROM commits c WHERE c.branch_id = b.id) AS commit_count
+  FROM branches b`;
+
+interface MergeBranchRow {
+  id: number;
+  repo_id: number;
+  name: string;
+  parent_branch_id: number | null;
+  commit_count: string | number;
+  created_at: Date;
+  base_snapshot: Schema;
+  working_snapshot: Schema;
+  working_rev: number;
+  working_saved_by: string | null;
+  working_saved_at: Date | null;
+}
+
+async function mergeSideFor(
+  pool: pg.Pool,
+  row: MergeBranchRow,
+): Promise<MergeSideState> {
+  const tip = await pool.query(
+    `SELECT id, branch_id, message, author, created_at, snapshot
+     FROM commits WHERE branch_id = $1 ORDER BY id DESC LIMIT 1`,
+    [row.id],
+  );
+  const head = tip.rows[0];
+  if (!head) {
+    // A branch with a parent is born with the copied split-point
+    // commit and commits are never deleted, so this can't happen
+    // without the data being broken — fail loudly over guessing.
+    throw new Error(`branch ${row.id} has no commits — merge context is impossible`);
+  }
+  return {
+    branch: rowToBranch(row),
+    tip: { commit: rowToCommit(head), snapshot: head.snapshot },
+    working: {
+      snapshot: row.working_snapshot,
+      rev: row.working_rev,
+      savedBy: row.working_saved_by,
+      savedAt: row.working_saved_at ? row.working_saved_at.toISOString() : null,
+    },
+  };
+}
+
+export async function getMergeContext(
+  pool: pg.Pool,
+  branchId: number,
+  username: string,
+): Promise<MergeContextResult | null> {
+  const sourceResult = await pool.query(
+    `${MERGE_BRANCH_SELECT} JOIN repos r ON r.id = b.repo_id
+     WHERE b.id = $1 AND ${IS_MEMBER("$2")}`,
+    [branchId, username],
+  );
+  const sourceRow = sourceResult.rows[0] as MergeBranchRow | undefined;
+  if (!sourceRow) return null;
+  if (sourceRow.parent_branch_id === null) {
+    return { ok: false, reason: "no-parent" };
+  }
+  // Membership is proven above and parent/child always share a repo,
+  // so the parent read needs no second membership check.
+  const parentResult = await pool.query(
+    `${MERGE_BRANCH_SELECT} WHERE b.id = $1`,
+    [sourceRow.parent_branch_id],
+  );
+  const parentRow = parentResult.rows[0] as MergeBranchRow | undefined;
+  if (!parentRow) {
+    throw new Error(`branch ${branchId} points at a missing parent — data invariant broken`);
+  }
+  const [source, parent] = await Promise.all([
+    mergeSideFor(pool, sourceRow),
+    mergeSideFor(pool, parentRow),
+  ]);
+  return {
+    ok: true,
+    context: { source, parent, base: sourceRow.base_snapshot },
+  };
 }

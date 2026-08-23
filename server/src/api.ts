@@ -17,6 +17,7 @@ import {
   createRepo,
   ensureUser,
   getCommit,
+  getMergeContext,
   getRepo,
   getWorkingState,
   isUniqueViolation,
@@ -25,6 +26,7 @@ import {
   listRepos,
   saveWorking,
   userExists,
+  type MergeMarker,
 } from "./store.ts";
 
 // Usernames travel in an HTTP header and double as display names, so
@@ -259,7 +261,8 @@ export function createApi(pool: pg.Pool): express.Router {
   api.post("/branches/:branchId/commits", async (req, res) => {
     const username = res.locals.username as string;
     const branchId = readId(req.params.branchId);
-    const message = readName((req.body ?? {}).message, 200);
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const message = readName(body.message, 200);
     if (!message) {
       res.status(400).json({
         error: "A commit needs a message (1–200 characters)",
@@ -268,18 +271,71 @@ export function createApi(pool: pg.Pool): express.Router {
     }
     const input = readSnapshotAndRev(req.body, res);
     if (!input) return;
+    // Optional merge marker (decisions.md #20): this commit records a
+    // merge, and the merged branch's base advances with it.
+    let merge: MergeMarker | undefined;
+    if (body.merge !== undefined) {
+      const raw = (body.merge ?? {}) as Record<string, unknown>;
+      const sourceBranchId = readIdValue(raw.sourceBranchId);
+      const mergedCommitId = readIdValue(raw.mergedCommitId);
+      if (!sourceBranchId || !mergedCommitId) {
+        res.status(400).json({
+          error: "A merge marker needs a sourceBranchId and a mergedCommitId",
+        });
+        return;
+      }
+      merge = { sourceBranchId, mergedCommitId };
+    }
     const result = branchId
-      ? await commitWorking(pool, branchId, username, message, input.snapshot, input.expectedRev)
+      ? await commitWorking(
+          pool,
+          branchId,
+          username,
+          message,
+          input.snapshot,
+          input.expectedRev,
+          merge,
+        )
       : null;
     if (!result) {
       res.status(404).json({ error: "No such branch (or you're not a member)" });
       return;
     }
     if (!result.ok) {
+      if ("invalidMerge" in result) {
+        res.status(400).json({
+          error:
+            "That merge marker doesn't add up — the merged branch must be a direct child of this one, and the merged commit must be on it. Nothing was committed.",
+        });
+        return;
+      }
       res.status(409).json({ conflict: result.conflict });
       return;
     }
     res.status(201).json({ commit: result.commit, rev: result.rev, savedAt: result.savedAt });
+  });
+
+  // Everything a merge needs in one read (decisions.md #20): the
+  // stored base, both tips, both working states. The engine runs in
+  // the client (decisions.md #19); this route only gathers inputs.
+  api.get("/branches/:branchId/merge-context", async (req, res) => {
+    const username = res.locals.username as string;
+    const branchId = readId(req.params.branchId);
+    const result = branchId
+      ? await getMergeContext(pool, branchId, username)
+      : null;
+    if (!result) {
+      res.status(404).json({ error: "No such branch (or you're not a member)" });
+      return;
+    }
+    if (!result.ok) {
+      res.status(409).json({
+        error:
+          "This branch has no parent to merge into — merging goes from a branch to the branch it split from",
+      });
+      return;
+    }
+    res.json(result.context);
   });
 
   // Commit ids are global (one sequence across branches), so a commit

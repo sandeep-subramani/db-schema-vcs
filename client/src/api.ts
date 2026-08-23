@@ -40,6 +40,34 @@ export interface CommitMeta {
   createdAt: string;
 }
 
+/** One branch's side of a merge (mirrors server MergeSideState). */
+export interface MergeSideState {
+  branch: Branch;
+  tip: { commit: CommitMeta; snapshot: Schema };
+  working: {
+    snapshot: Schema;
+    rev: number;
+    savedBy: string | null;
+    savedAt: string | null;
+  };
+}
+
+/** Everything a merge needs in one read (decisions.md #20): the
+ *  stored base plus both sides' tips and working states. */
+export interface MergeContext {
+  source: MergeSideState;
+  parent: MergeSideState;
+  base: Schema;
+}
+
+/** Rides on a commit to record a merge: the merged branch and the tip
+ *  that was merged. The server advances that branch's base with the
+ *  commit, in one transaction (decisions.md #20). */
+export interface MergeMarker {
+  sourceBranchId: number;
+  mergedCommitId: number;
+}
+
 /** A stale save: someone saved rev `rev` after we loaded ours (decisions.md #15). */
 export interface SaveConflict {
   rev: number;
@@ -196,11 +224,12 @@ export const api = {
     message: string,
     snapshot: Schema,
     expectedRev: number,
+    merge?: MergeMarker,
   ): Promise<CommitOutcome> {
     const result = await requestAllowingConflict(
       "POST",
       `/branches/${branchId}/commits`,
-      { message, snapshot, expectedRev },
+      { message, snapshot, expectedRev, ...(merge ? { merge } : {}) },
     );
     if (result.conflict) return { ok: false, conflict: result.conflict };
     return {
@@ -220,5 +249,10 @@ export const api = {
   ): Promise<{ commit: CommitMeta; snapshot: Schema }> {
     const payload = await request("GET", `/commits/${commitId}`);
     return payload as unknown as { commit: CommitMeta; snapshot: Schema };
+  },
+
+  async getMergeContext(branchId: number): Promise<MergeContext> {
+    const payload = await request("GET", `/branches/${branchId}/merge-context`);
+    return payload as unknown as MergeContext;
   },
 };

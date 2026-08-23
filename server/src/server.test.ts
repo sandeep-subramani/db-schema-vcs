@@ -12,7 +12,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
-import { EXAMPLE_SCHEMA, type Schema } from "engine";
+import { EXAMPLE_SCHEMA, mergeSchemas, type Schema } from "engine";
 import { createApp } from "./app.ts";
 import { migrate } from "./migrate.ts";
 
@@ -440,6 +440,182 @@ describe("working state, branching, commits", () => {
       (await call("GET", `/branches/${mainId}/commits`, { user: "mallory" })).status,
     ).toBe(404);
     expect((await call("GET", "/branches/999999", { user: "dev" })).status).toBe(404);
+  });
+
+  it("merge context and merge commits (decisions.md #20)", async () => {
+    // Layout: main commits a base, "pricing" branches off, both sides
+    // then diverge — the exact three-snapshot setup a merge needs.
+    const mergeBase: Schema = {
+      tables: [
+        {
+          name: "items",
+          columns: [
+            { name: "id", type: "unique-id", nullable: false },
+            { name: "name", type: "text", nullable: false },
+          ],
+          primaryKey: ["id"],
+        },
+      ],
+    };
+    const featureTip: Schema = {
+      tables: [
+        {
+          name: "items",
+          columns: [
+            { name: "id", type: "unique-id", nullable: false },
+            { name: "name", type: "text", nullable: false },
+            { name: "price", type: "whole-number", nullable: false },
+          ],
+          primaryKey: ["id"],
+        },
+      ],
+    };
+    const mainTip: Schema = {
+      tables: [
+        ...mergeBase.tables,
+        {
+          name: "tags",
+          columns: [{ name: "id", type: "unique-id", nullable: false }],
+          primaryKey: ["id"],
+        },
+      ],
+    };
+    const merged: Schema = { tables: [...featureTip.tables, mainTip.tables[1]!] };
+
+    await call("POST", "/users", { body: { username: "meg" } });
+    const created = await call("POST", "/repos", { user: "meg", body: { name: "mergeland" } });
+    const mergeMainId = (created.body as { mainBranchId: number }).mainBranchId;
+    const mergeRepoId = ((created.body as { repo: { id: number } }).repo).id;
+
+    await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: { message: "base", snapshot: mergeBase, expectedRev: 0 },
+    });
+    const branch = await call("POST", `/repos/${mergeRepoId}/branches`, {
+      user: "meg",
+      body: { name: "pricing", fromBranchId: mergeMainId },
+    });
+    const pricingId = (branch.body.branch as { id: number }).id;
+    const featureCommit = await call("POST", `/branches/${pricingId}/commits`, {
+      user: "meg",
+      body: { message: "add price", snapshot: featureTip, expectedRev: 0 },
+    });
+    const featureTipId = (featureCommit.body.commit as { id: number }).id;
+    const mainCommit = await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: { message: "add tags", snapshot: mainTip, expectedRev: 1 },
+    });
+    const mainTipId = (mainCommit.body.commit as { id: number }).id;
+
+    // Merge context: the stored base plus both sides' tips + workings.
+    const context = await call("GET", `/branches/${pricingId}/merge-context`, { user: "meg" });
+    expect(context.status).toBe(200);
+    expect(context.body.base).toEqual(mergeBase);
+    const source = context.body.source as {
+      tip: { commit: { id: number; message: string }; snapshot: Schema };
+      working: { rev: number };
+    };
+    const parent = context.body.parent as {
+      branch: { id: number };
+      tip: { commit: { message: string }; snapshot: Schema };
+      working: { rev: number; snapshot: Schema };
+    };
+    expect(source.tip.commit).toMatchObject({ id: featureTipId, message: "add price" });
+    expect(source.tip.snapshot).toEqual(featureTip);
+    expect(parent.branch.id).toBe(mergeMainId);
+    expect(parent.tip.snapshot).toEqual(mainTip);
+    expect(parent.working.snapshot).toEqual(mainTip);
+    const parentRev = parent.working.rev;
+
+    // Root branches have nothing to merge into; outsiders see a 404.
+    expect(
+      (await call("GET", `/branches/${mergeMainId}/merge-context`, { user: "meg" })).status,
+    ).toBe(409);
+    expect(
+      (await call("GET", `/branches/${pricingId}/merge-context`, { user: "mallory" })).status,
+    ).toBe(404);
+    expect((await call("GET", "/branches/999999/merge-context", { user: "meg" })).status).toBe(404);
+
+    // Bad markers are refused whole — no commit, no base movement:
+    // a merged commit that isn't on the source branch…
+    const wrongCommit = await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: {
+        message: "bogus merge",
+        snapshot: merged,
+        expectedRev: parentRev,
+        merge: { sourceBranchId: pricingId, mergedCommitId: mainTipId },
+      },
+    });
+    expect(wrongCommit.status).toBe(400);
+    // …a "merge" whose source isn't a direct child of the target…
+    const inverted = await call("POST", `/branches/${pricingId}/commits`, {
+      user: "meg",
+      body: {
+        message: "backwards merge",
+        snapshot: merged,
+        expectedRev: 1,
+        merge: { sourceBranchId: mergeMainId, mergedCommitId: mainTipId },
+      },
+    });
+    expect(inverted.status).toBe(400);
+    // …and a marker missing its fields.
+    const malformed = await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: { message: "half a marker", snapshot: merged, expectedRev: parentRev, merge: {} },
+    });
+    expect(malformed.status).toBe(400);
+
+    // A stale merge commit hits the same staleness check as any save.
+    const stale = await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: {
+        message: "stale merge",
+        snapshot: merged,
+        expectedRev: 0,
+        merge: { sourceBranchId: pricingId, mergedCommitId: featureTipId },
+      },
+    });
+    expect(stale.status).toBe(409);
+
+    // Nothing above landed: history unchanged, base unchanged.
+    const mainHistory = await call("GET", `/branches/${mergeMainId}/commits`, { user: "meg" });
+    expect(mainHistory.body.commits).toHaveLength(2);
+    const baseBefore = await pool.query(
+      "SELECT base_snapshot FROM branches WHERE id = $1",
+      [pricingId],
+    );
+    expect(baseBefore.rows[0].base_snapshot).toEqual(mergeBase);
+
+    // The real merge commit: lands on main AND advances pricing's
+    // stored base to the merged tip, atomically (decisions.md #20).
+    const mergeCommit = await call("POST", `/branches/${mergeMainId}/commits`, {
+      user: "meg",
+      body: {
+        message: "Merge branch 'pricing'",
+        snapshot: merged,
+        expectedRev: parentRev,
+        merge: { sourceBranchId: pricingId, mergedCommitId: featureTipId },
+      },
+    });
+    expect(mergeCommit.status).toBe(201);
+    const afterHistory = await call("GET", `/branches/${mergeMainId}/commits`, { user: "meg" });
+    expect(
+      (afterHistory.body.commits as Array<{ message: string }>)[0]!.message,
+    ).toBe("Merge branch 'pricing'");
+    const contextAfter = await call("GET", `/branches/${pricingId}/merge-context`, { user: "meg" });
+    expect(contextAfter.body.base).toEqual(featureTip);
+
+    // The point of the base advance: merging again from here finds
+    // nothing left to bring over and re-flags nothing.
+    const after = contextAfter.body as {
+      base: Schema;
+      source: { tip: { snapshot: Schema } };
+      parent: { tip: { snapshot: Schema } };
+    };
+    const rerun = mergeSchemas(after.base, after.parent.tip.snapshot, after.source.tip.snapshot);
+    expect(rerun.conflicts).toEqual([]);
+    expect(rerun.theirsChanges).toEqual([]);
   });
 
   it("a commit's snapshot is readable by members only (the diff view's raw material)", async () => {

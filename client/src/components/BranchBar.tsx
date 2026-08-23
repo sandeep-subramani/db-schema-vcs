@@ -16,12 +16,18 @@ export function BranchBar({
   historyOpen,
   reviewOpen,
   canBranch,
+  parentName,
+  mergeOpen,
+  canCompare,
+  compareOpen,
   onSwitch,
   onNewBranch,
   onSave,
   onCommit,
   onToggleHistory,
   onToggleReview,
+  onToggleMerge,
+  onToggleCompare,
 }: {
   branches: Branch[];
   currentId: number;
@@ -35,12 +41,21 @@ export function BranchBar({
   reviewOpen: boolean;
   /** False until some branch has a commit to split at (decisions.md #16). */
   canBranch: boolean;
+  /** Parent branch's name — merge goes there (decisions.md #7, #20);
+   *  null on a root branch, which has nowhere to merge into. */
+  parentName: string | null;
+  mergeOpen: boolean;
+  /** False until some branch has a commit — nothing to compare before that. */
+  canCompare: boolean;
+  compareOpen: boolean;
   onSwitch: (branchId: number) => void;
   onNewBranch: () => void;
   onSave: () => void;
   onCommit: () => void;
   onToggleHistory: () => void;
   onToggleReview: () => void;
+  onToggleMerge: () => void;
+  onToggleCompare: () => void;
 }) {
   // Depth for indentation: walk parent pointers (the tree is small).
   const byId = new Map(branches.map((b) => [b.id, b]));
@@ -104,6 +119,16 @@ export function BranchBar({
       >
         + New branch
       </button>
+      {parentName !== null && (
+        <button
+          type="button"
+          className={mergeOpen ? "btn btn--toggled" : "btn"}
+          onClick={onToggleMerge}
+          title={`Merge this branch's last commit into “${parentName}”`}
+        >
+          Merge into “{parentName}”…
+        </button>
+      )}
 
       <span className={dirty ? "save-status save-status--dirty" : "save-status"}>
         {dirty && <span className="dirty-dot" aria-hidden="true" />}
@@ -129,6 +154,19 @@ export function BranchBar({
         </button>
         <button type="button" className="btn btn--primary" onClick={onCommit} disabled={saving}>
           Commit…
+        </button>
+        <button
+          type="button"
+          className={compareOpen ? "btn btn--toggled" : "btn"}
+          onClick={onToggleCompare}
+          disabled={!canCompare}
+          title={
+            canCompare
+              ? "Compare any two commits, across branches"
+              : "Nothing committed yet — commit first, then compare versions"
+          }
+        >
+          Compare…
         </button>
         <button
           type="button"

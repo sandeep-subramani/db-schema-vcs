@@ -237,3 +237,49 @@ Entry format:
   48 tests. The API/UX flow around this (working-state landing,
   git-strict inputs, base advance — decisions.md #20) is the next
   step; nothing server-side changed yet.
+
+- **[2026-08-23] Merge flow: API + screen, and the version picker** —
+  The engine's merge now has a door and a landing strip. The server
+  grew exactly two things. First, one read: `GET
+  /branches/:id/merge-context` hands back everything a merge needs in
+  a single trip — the stored branch-point snapshot (the "original
+  page"), both branches' latest commits, and both saved working
+  states with their revision numbers. The merge itself still runs in
+  the browser, same reasoning as the diff view (#19): answering a
+  rename question or picking a conflict side re-runs the engine
+  instantly, no server round trips. Second, the existing commit
+  endpoint accepts an optional merge marker ("this commit merges
+  branch X, whose commit Y is what I merged"); inside the same
+  database transaction as the commit it moves branch X's stored base
+  forward to Y's snapshot. Same transaction means history can never
+  say "merged" without the base moving — that base advance is why
+  continuing work on X and merging again re-flags nothing that was
+  already absorbed (the smoke test proves exactly this). A marker
+  that doesn't check out — X not a direct child, Y not on X — rejects
+  the whole commit with a plain 400 and writes nothing. The screen
+  follows decisions.md #20 to the letter: "Merge into main…" lives on
+  the branch being merged; it first checks both sides are truly
+  clean (working state equals last commit, compared with the diff
+  engine so a pure reorder still counts as clean, #18) and funnels
+  you to Commit or to the parent when they aren't. Conflicts render
+  as grouped pick-a-side cards — the reasons in plain words, each
+  side's stake listed with table-qualified lines, one "Keep X's
+  version" pick per group — above two side-by-side card grids reusing
+  the day-2 diff components unchanged. Apply doesn't commit: it saves
+  the merged schema as the parent's working state and moves you
+  there, where a banner offers Review changes (the existing diff),
+  Commit merge… (prefilled message, carries the marker), and Abandon
+  (an ordinary undoable edit that puts the last commit's schema back
+  on screen — saving it stays your explicit call, #15). The marker
+  lives in memory only; a reload loses it, which is #20's accepted
+  corner — nothing corrupts, a later merge may just re-ask questions.
+  The version picker (#19/#21) is the same card grid behind two
+  branch+commit dropdowns: any commit vs any commit. Pairs whose
+  branches don't sit on one parent chain (siblings included) get an
+  explicit "different branches: showing what differs, not what anyone
+  did" banner and no rename questions — those would ask about an edit
+  history nobody authored — so differences there show as plain
+  drop+add. Verified: 173 tests green (new: merge API round trip
+  incl. bad markers and staleness; branch-relatedness walk), plus an
+  end-to-end script driving context → conflict → resolve → land →
+  merge-commit → base advance against a real server and database.

@@ -70,12 +70,14 @@ scope change gets a decisions.md entry.
       unique removed while the other branch adds an FK targeting it
       (decisions.md #10), retype-vs-length (#9), nullable-vs-PK —
       all in the engine test catalogue
-- [ ] Merge API + flow (decisions.md #20): git-strict preconditions,
+- [x] Merge API + flow (decisions.md #20): git-strict preconditions,
       landing in parent working state, merge-commit + base advance in
-      one transaction
-- [ ] Merge / conflict-resolution UX v1 (compose two card grids,
-      pick-a-side conflict cards, rename-question banner reuse)
-- [ ] Arbitrary version picker — committed scope, not skippable
+      one transaction (merge-context read endpoint + marker on the
+      commit endpoint; engine runs client-side per #19)
+- [x] Merge / conflict-resolution UX v1 (compose two card grids,
+      pick-a-side conflict cards, rename-question banner reuse,
+      pending-merge banner on the parent with prefilled merge commit)
+- [x] Arbitrary version picker — committed scope, not skippable
       (decisions.md #19, #21): any commit vs any commit incl.
       cross-branch, reusing the card grid; unrelated pairs labeled,
       rename questions suppressed there

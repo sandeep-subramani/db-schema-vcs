@@ -10,10 +10,12 @@ import {
 } from "../api.ts";
 import { session } from "../session.ts";
 import { BranchBar } from "./BranchBar.tsx";
+import { CompareView } from "./CompareView.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { DiffView, diffTargetKey, type DiffTarget } from "./DiffView.tsx";
 import { FirstCommitGate } from "./FirstCommitGate.tsx";
 import { HistoryPanel } from "./HistoryPanel.tsx";
+import { MergeView, type MergeLanding } from "./MergeView.tsx";
 import { ImportExportDialog } from "./ImportExportDialog.tsx";
 import { MembersDialog } from "./MembersDialog.tsx";
 import { OverwriteDialog } from "./OverwriteDialog.tsx";
@@ -97,6 +99,14 @@ export function RepoScreen({
   const [membersOpen, setMembersOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  // A landed-but-uncommitted merge (decisions.md #20): remembered so
+  // the commit can carry the merge marker. In memory only — a reload
+  // loses it (#20's accepted corner). Keyed to its parent branch, so
+  // switching branches and coming back keeps it usable.
+  const [pendingMerge, setPendingMerge] = useState<MergeLanding | null>(null);
+  const [commitPrefill, setCommitPrefill] = useState<string | null>(null);
 
   const schema = history?.present ?? null;
   const dirty = history !== null && history.present !== savedSchema;
@@ -120,6 +130,8 @@ export function RepoScreen({
     setHistory(null);
     setConflictState(null);
     setDiffTarget(null);
+    setMerging(false);
+    setComparing(false);
     try {
       const [state, commitList] = await Promise.all([
         api.getBranch(id),
@@ -289,9 +301,19 @@ export function RepoScreen({
       if (!history || branchId === null) return;
       const seq = loadSeqRef.current;
       const snapshot = history.present;
+      // A commit on a branch holding a landed merge IS the merge
+      // commit — it carries the marker so the server advances the
+      // merged branch's base in the same transaction (decisions.md #20).
+      const marker =
+        pendingMerge && pendingMerge.parentBranchId === branchId
+          ? {
+              sourceBranchId: pendingMerge.sourceBranchId,
+              mergedCommitId: pendingMerge.mergedCommitId,
+            }
+          : undefined;
       setSaving(true);
       try {
-        const outcome = await api.commit(branchId, message, snapshot, expectedRev);
+        const outcome = await api.commit(branchId, message, snapshot, expectedRev, marker);
         if (seq !== loadSeqRef.current) return; // we've left that branch — don't touch the new one's state
         if (outcome.ok) {
           setCommitting(false);
@@ -303,7 +325,14 @@ export function RepoScreen({
               b.id === branchId ? { ...b, commitCount: b.commitCount + 1 } : b,
             ),
           );
-          setToast({ id: Date.now(), message: `Committed “${message}”`, undoable: false });
+          if (marker) setPendingMerge(null);
+          setToast({
+            id: Date.now(),
+            message: marker
+              ? `Committed “${message}” — merge recorded, “${pendingMerge?.sourceBranchName}” can keep going from here`
+              : `Committed “${message}”`,
+            undoable: false,
+          });
         } else {
           setCommitting(false);
           setConflictState({
@@ -317,7 +346,7 @@ export function RepoScreen({
         setSaving(false);
       }
     },
-    [history, branchId, username],
+    [history, branchId, username, pendingMerge],
   );
 
   // --- navigation guards -------------------------------------------------------
@@ -409,6 +438,65 @@ export function RepoScreen({
         undoable: false,
       });
     }
+  }
+
+  // --- merge (decisions.md #20) ---------------------------------------------
+
+  function toggleMerge() {
+    if (merging) {
+      setMerging(false);
+      return;
+    }
+    // Unsaved on-screen edits go through the usual three-way dialog
+    // first; the merge view then checks the deeper git-strict
+    // preconditions (saved-but-uncommitted work) itself.
+    guardDirty("start the merge", () => {
+      setComparing(false);
+      setDiffTarget(null);
+      setMerging(true);
+    });
+  }
+
+  function toggleCompare() {
+    if (comparing) {
+      setComparing(false);
+      return;
+    }
+    setMerging(false);
+    setDiffTarget(null);
+    setComparing(true);
+  }
+
+  /** The merged schema was saved into the parent's working state —
+   *  move there and remember the marker for the eventual commit. */
+  function landMerge(landing: MergeLanding) {
+    setPendingMerge(landing);
+    setMerging(false);
+    void loadBranch(landing.parentBranchId);
+    setToast({
+      id: Date.now(),
+      message: `Merged “${landing.sourceBranchName}” into “${landing.parentBranchName}” — review it here, then commit to make it history`,
+      undoable: false,
+    });
+  }
+
+  /** Put the parent's last-committed schema back on screen (an
+   *  ordinary undoable edit — saving it is still the user's explicit
+   *  call, decisions.md #15) and forget the merge bookkeeping. */
+  function abandonMerge() {
+    if (!pendingMerge) return;
+    setDiffTarget(null);
+    applyEdit(
+      pendingMerge.restoreSnapshot,
+      "Merge abandoned — the schema on screen is back to the last commit (not saved yet)",
+    );
+    setPendingMerge(null);
+  }
+
+  function openCommitDialog(prefill: string | null) {
+    setCommitPrefill(prefill);
+    setCommitError(null);
+    setCommitting(true);
   }
 
   // --- render -------------------------------------------------------------------
@@ -516,6 +604,10 @@ export function RepoScreen({
           reviewOpen={diffTarget?.kind === "working"}
           onSwitch={requestSwitch}
           canBranch={branchable.length > 0}
+          parentName={parentName}
+          mergeOpen={merging}
+          canCompare={branchable.length > 0}
+          compareOpen={comparing}
           onNewBranch={() => {
             setBranchFromId(
               branchable.some((b) => b.id === branchId)
@@ -526,17 +618,51 @@ export function RepoScreen({
             setBranching(true);
           }}
           onSave={() => void doSave(working.rev)}
-          onCommit={() => {
-            setCommitError(null);
-            setCommitting(true);
-          }}
+          onCommit={() => openCommitDialog(null)}
           onToggleHistory={() => setHistoryOpen((open) => !open)}
           onToggleReview={() =>
             setDiffTarget((current) =>
               current?.kind === "working" ? null : { kind: "working" },
             )
           }
+          onToggleMerge={toggleMerge}
+          onToggleCompare={toggleCompare}
         />
+      )}
+
+      {pendingMerge && branchId === pendingMerge.parentBranchId && !merging && (
+        <div className="merge-banner">
+          <p className="merge-banner-text">
+            <strong>Merging “{pendingMerge.sourceBranchName}”</strong> — the
+            merged schema is saved here as the working state. Review it, adjust
+            in the editor if something's off, then commit to finish.
+          </p>
+          <div className="merge-banner-actions">
+            <button
+              type="button"
+              className={diffTarget?.kind === "working" ? "btn btn--toggled" : "btn"}
+              onClick={() =>
+                setDiffTarget((current) =>
+                  current?.kind === "working" ? null : { kind: "working" },
+                )
+              }
+            >
+              Review changes
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() =>
+                openCommitDialog(`Merge branch '${pendingMerge.sourceBranchName}'`)
+              }
+            >
+              Commit merge…
+            </button>
+            <button type="button" className="btn" onClick={abandonMerge}>
+              Abandon
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="layout">
@@ -559,7 +685,24 @@ export function RepoScreen({
           />
         ) : (
           <>
-            {diffTarget ? (
+            {merging && branchId !== null ? (
+              <MergeView
+                sourceBranchId={branchId}
+                onClose={() => setMerging(false)}
+                onRequestCommit={() => {
+                  setMerging(false);
+                  openCommitDialog(null);
+                }}
+                onSwitchToParent={requestSwitch}
+                onLanded={landMerge}
+              />
+            ) : comparing && branchId !== null ? (
+              <CompareView
+                branches={branches}
+                initialBranchId={branchId}
+                onClose={() => setComparing(false)}
+              />
+            ) : diffTarget ? (
               <DiffView
                 key={diffTargetKey(diffTarget)}
                 target={diffTarget}
@@ -672,7 +815,12 @@ export function RepoScreen({
           label="What changed?"
           placeholder="e.g. add orders table with FK to users"
           submitLabel="Commit"
-          hint="Saves the schema and stamps it into this branch's history."
+          initialValue={commitPrefill ?? undefined}
+          hint={
+            pendingMerge && branchId === pendingMerge.parentBranchId
+              ? `Stamps the merged schema into history and records the merge — “${pendingMerge.sourceBranchName}” continues from what was merged.`
+              : "Saves the schema and stamps it into this branch's history."
+          }
           error={commitError}
           busy={saving}
           onSubmit={(message) => void doCommit(message, working.rev)}

@@ -8,6 +8,7 @@ export function TextPromptDialog({
   label,
   placeholder,
   submitLabel,
+  initialValue,
   hint,
   error,
   busy,
@@ -19,6 +20,9 @@ export function TextPromptDialog({
   label: string;
   placeholder: string;
   submitLabel: string;
+  /** Pre-filled, still editable text — e.g. a suggested merge-commit
+   *  message. Read once when the dialog opens. */
+  initialValue?: string;
   /** Muted line under the field, e.g. what the action will do. */
   hint?: string;
   /** Server-side rejection to show (name taken, etc.). */
@@ -29,7 +33,7 @@ export function TextPromptDialog({
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue ?? "");
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

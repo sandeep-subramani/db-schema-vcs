@@ -9,6 +9,10 @@ import { api, ApiError, type CommitMeta } from "../api.ts";
 import { timeAgo } from "../time.ts";
 import { buildDiffCards } from "../diff/view-model.ts";
 import { DiffCardGrid } from "./DiffCardGrid.tsx";
+import {
+  describeRenameQuestion,
+  RenameQuestionsBanner,
+} from "./RenameQuestionsBanner.tsx";
 
 // The diff screen (decisions.md #19): what one commit changed, or what
 // the schema on screen changed since the last commit. The diff runs
@@ -194,53 +198,15 @@ export function DiffView({
         diff &&
         cards && (
           <>
-            {diff.questions.length > 0 && (
-              <div className="diff-questions">
-                <h3>
-                  Possible {diff.questions.length === 1 ? "rename" : "renames"} —
-                  you decide
-                </h3>
-                <p className="diff-questions-hint">
-                  A snapshot can't tell a rename from a drop + add. Until you
-                  answer, the pair below shows as dropped and added. Answers
-                  only shape this view — nothing is saved.
-                </p>
-                <ul>
-                  {diff.questions.map((question) => (
-                    <li key={`${question.kind}:${question.from}:${question.to}`}>
-                      <span className="diff-question-text">
-                        {question.kind === "table" ? (
-                          <>
-                            Was table <code>{question.from}</code> renamed to{" "}
-                            <code>{question.to}</code>?
-                          </>
-                        ) : (
-                          <>
-                            In <code>{question.table}</code>: was{" "}
-                            <code>{question.from}</code> renamed to{" "}
-                            <code>{question.to}</code>?
-                          </>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => answer(question, true)}
-                      >
-                        Yes, renamed
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => answer(question, false)}
-                      >
-                        No
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <RenameQuestionsBanner
+              title={`Possible ${diff.questions.length === 1 ? "rename" : "renames"} — you decide`}
+              hint="A snapshot can't tell a rename from a drop + add. Until you answer, the pair below shows as dropped and added. Answers only shape this view — nothing is saved."
+              items={diff.questions.map((question) => ({
+                key: `${question.kind}:${question.from}:${question.to}`,
+                text: describeRenameQuestion(question),
+                answer: (rename: boolean) => answer(question, rename),
+              }))}
+            />
             {diff.changes.length === 0 && diff.questions.length === 0 ? (
               <div className="empty empty--main">
                 <h2>No schema changes</h2>

@@ -1076,6 +1076,217 @@ textarea.json {
   color: var(--muted);
 }
 
+/* --- merge view -------------------------------------------------------- */
+
+.merge-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-size: 0.85rem;
+}
+
+.merge-banner-text {
+  margin: 0;
+}
+
+.merge-banner-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.merge-conflicts {
+  margin-bottom: 1.5rem;
+}
+
+.merge-conflicts h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  color: var(--danger);
+}
+
+.merge-conflicts-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.merge-conflict {
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: 0.7rem;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.merge-conflict--resolved {
+  border-color: var(--border);
+}
+
+.merge-reasons {
+  list-style: none;
+  margin: 0 0 0.7rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.merge-reasons li::before {
+  content: "⚠ ";
+  color: var(--danger);
+}
+
+.merge-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.merge-side {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.merge-side--kept {
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 5%, transparent);
+}
+
+.merge-side--dropped {
+  opacity: 0.55;
+}
+
+.merge-side-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.merge-side-name {
+  font-weight: 650;
+  font-size: 0.88rem;
+}
+
+.merge-side-pick {
+  align-self: flex-start;
+}
+
+.merge-grids {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.merge-grid > h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.merge-apply {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.merge-apply-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.merge-apply-status {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.merge-apply-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.merge-apply .btn {
+  margin-left: auto;
+}
+
+.merge-apply-error {
+  margin: 1rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* --- compare view -------------------------------------------------------- */
+
+.compare-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.compare-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.compare-group-label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.35rem;
+}
+
+.compare-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.compare-field select {
+  max-width: 18rem;
+  color: inherit;
+}
+
+.compare-swap {
+  align-self: flex-end;
+}
+
+.compare-unrelated {
+  border: 1px solid var(--border);
+  background: var(--hover);
+  border-radius: 0.6rem;
+  padding: 0.7rem 1.1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+}
+
 /* --- members ------------------------------------------------------------------------- */
 
 .member-list {
