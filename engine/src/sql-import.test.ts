@@ -205,7 +205,7 @@ describe("importPostgresSql — hand-written DDL", () => {
       "audit.log",
       "plain",
     ]);
-    expect(table(schema, "Users").columns[0].name).toBe("userId");
+    expect(table(schema, "Users").columns[0]?.name).toBe("userId");
   });
 
   it("keeps the first definition when a table is defined twice", () => {
@@ -298,7 +298,7 @@ describe("importPostgresSql — statement policy", () => {
     // Postgres would infer the PK; the parser can't read the form, so
     // the whole statement is skipped — with advice, not a shrug.
     expect(schema.tables).toEqual([]);
-    expect(issues[0].why).toContain("REFERENCES table(column)");
+    expect(issues[0]?.why).toContain("REFERENCES table(column)");
   });
 
   it("returns an empty schema for empty or comment-only input", () => {

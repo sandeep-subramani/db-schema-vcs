@@ -1,5 +1,11 @@
 # CLAUDE.md — Schema Version Control
 
+## UI restyle rules
+- Presentation-only: never modify props, state, hooks, handlers,
+  context, or data fetching. Only JSX markup within render + styles.
+- If a visual change requires moving logic or props, stop and ask.
+- After each screen: run tests, screenshot via Playwright, show diff.
+
 ## What this is
 Web app: version control for database schemas — branch a schema,
 evolve it independently, diff the branches, and merge back with
