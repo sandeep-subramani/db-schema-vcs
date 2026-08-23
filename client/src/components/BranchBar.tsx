@@ -20,6 +20,7 @@ export function BranchBar({
   mergeOpen,
   canCompare,
   compareOpen,
+  canCommit,
   onSwitch,
   onNewBranch,
   onSave,
@@ -48,6 +49,9 @@ export function BranchBar({
   /** False until some branch has a commit — nothing to compare before that. */
   canCompare: boolean;
   compareOpen: boolean;
+  /** False on an empty branch with no commits — an empty first commit
+   *  would only dismiss the gate, so bring a schema in first. */
+  canCommit: boolean;
   onSwitch: (branchId: number) => void;
   onNewBranch: () => void;
   onSave: () => void;
@@ -152,7 +156,17 @@ export function BranchBar({
         <button type="button" className="btn" onClick={onSave} disabled={!dirty || saving}>
           Save
         </button>
-        <button type="button" className="btn btn--primary" onClick={onCommit} disabled={saving}>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={onCommit}
+          disabled={saving || !canCommit}
+          title={
+            canCommit
+              ? undefined
+              : "Nothing to commit yet — bring a schema in first"
+          }
+        >
           Commit…
         </button>
         <button

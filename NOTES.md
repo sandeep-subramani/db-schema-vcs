@@ -341,3 +341,54 @@ Entry format:
   green — splitter edge cases, the full type table, FK resolution
   across statement order, dropped-key reasons, and a realistic
   pg_dump fixture asserting both the schema and the skip list.
+
+## Day 4 — product-pass audit: one real bug, one readability fix
+
+Walked the whole app in a real browser as a brand-new user (empty
+repo list, first-commit gate, all three import doors with garbage
+input, commit → branch → conflicting edits → merge → compare) to
+audit the day-4 checklist: first-run experience, empty states, error
+messages, and diff/merge readability. The good news: most of it was
+already in shape — every empty state has words and a next step, and
+the error messages (invalid JSON, wrong-shape JSON, unparseable SQL,
+duplicate names, stale saves) are specific and human.
+
+Two things needed code. First, a real bug: opening Compare left both
+commit pickers stuck on "loading…" forever. The fetch effect had a
+"component unmounted, discard the result" flag, plus a longer-lived
+"this request is already running, don't start another" note. React's
+dev mode mounts every component twice on purpose (to catch exactly
+this kind of mistake), and the two interacted badly: mount one
+started the fetch and then threw away its result, mount two saw the
+"already running" note and never fetched again — so nobody ever
+filled the list. The same trap could bite a fast branch switch in
+production. Fix: keep the "already running" note but stop discarding
+results — these fetches fill a cache keyed by branch/commit id, so a
+result that arrives late is still correct, and React 18 makes the
+late state write harmless. CompareView was the only component pairing
+those two patterns; the others refetch on remount, so their discarded
+first result gets replaced naturally.
+
+Second, readability: in narrow diff cards (the 3–4-column compare
+grid, the merge view's side-by-side grids), long change lines wrapped
+badly — the +/− mark could end up alone on its own row, and the
+wrapped text landed flush-left under the mark instead of under the
+words. Every change line is now "mark in a fixed gutter + one body
+that wraps inside itself", which reads like a hanging indent: the
+second line of a long foreign-key description starts under the first
+line's text, and the mark always stays put. Same structure applied in
+the card grid (shared by diff, review, and compare) and the merge
+conflict cards.
+
+## Day 4 — gate polish: Commit… now waits for a schema
+
+Follow-up to the audit, per Sandeep's picks: on a brand-new branch
+(no commits, empty schema) the Commit… button is now disabled with a
+hint, matching how Review changes and Compare… already behave. Before
+this, clicking it would commit a zero-table schema — its only visible
+effect was dismissing the first-commit gate, which read like a bug.
+The guard is UI-only and as narrow as possible: bring in any schema
+(editor, JSON, SQL, example) and Commit… lights up immediately, and
+once a branch has history, committing an empty schema as a deliberate
+change is still allowed. Repo/branch name validation stays as-is by
+decision (#26) — they're display labels, not identifiers.

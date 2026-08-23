@@ -83,8 +83,19 @@ scope change gets a decisions.md entry.
       rename questions suppressed there
 
 ## Day 4 — product pass
-- [ ] First-run experience, empty states, human error messages
-- [ ] Readability polish on diff and merge views
+- [x] First-run experience, empty states, human error messages —
+      full browser audit (gate, empty states, import errors,
+      duplicate names, stale saves: all already human); both open
+      decisions resolved: Commit… disabled-with-hint on the empty
+      gate (decisions.md #25), repo/branch names stay length-checked
+      only (#26)
+- [x] Readability polish on diff and merge views — audit found one
+      defect: long change lines in narrow cards orphaned the +/− mark
+      and lost their indent when wrapping; fixed with a hanging-indent
+      line structure shared by diff, compare, and merge conflict
+      cards. Bonus bug fixed on the way: Compare's commit pickers
+      stuck on "loading…" (fetch result discarded on unmount while
+      the in-flight marker blocked the refetch)
 - [x] Paste-SQL import — committed scope, no longer stretch
       (decisions.md #8): pgsql-ast-parser approved by measurement
       (#23), Postgres type audit + auto-number family + FK twin rule

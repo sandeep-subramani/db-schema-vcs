@@ -619,6 +619,7 @@ export function RepoScreen({
           mergeOpen={merging}
           canCompare={branchable.length > 0}
           compareOpen={comparing}
+          canCommit={commits.length > 0 || (schema?.tables.length ?? 0) > 0}
           onNewBranch={() => {
             setBranchFromId(
               branchable.some((b) => b.id === branchId)

@@ -1048,3 +1048,54 @@ skipped type in a key loses that key, loudly (skip list names it).
 **What I deliberately cut:** Nothing silently — every declined type
 and every dropped attribute surfaces on the import's skip list, so
 the cut is visible in the product, not just in this file.
+
+---
+
+## 25. First-commit gate: Commit… disabled while there's nothing to commit
+
+**The decision:** On a branch with no commits and an empty schema (the
+first-commit gate state), the toolbar's Commit… button is disabled
+with a hint ("Nothing to commit yet — bring a schema in first"). It
+enables the moment a schema arrives by any door — editor, JSON, SQL,
+example — even before the first save. Once a branch has any commit,
+Commit… is never gated on schema emptiness again: committing a
+zero-table schema *as a change* stays legal.
+
+**The alternatives:** Leaving it enabled (git allows empty commits;
+an empty root could serve as a "start" marker) — rejected: the only
+visible effect here is dismissing the gate page and stamping a
+zero-table version nothing builds on, a footgun with no real use in
+this product. A confirm dialog ("commit an empty schema?") — rejected:
+one more dialog to defend a state nobody wants.
+
+**The reasoning:** Consistency with the neighbors — Review changes and
+Compare… are already disabled-with-hint until they can do something
+useful; Commit… was the odd one out, found by the day-4 audit.
+
+**What I deliberately cut:** No engine or server change — the API will
+still accept an empty first commit; this is a UI guard only.
+
+---
+
+## 26. Repo and branch names: length-checked only, any characters allowed
+
+**The decision:** Repo and branch names keep their existing
+validation — 1–64 characters, nothing else. "Bad Name!!" and names
+with spaces are allowed. Usernames stay strictly validated (they ride
+in a request header and act as identifiers); repo and branch names are
+display labels, rendered through React's escaping, so looser rules
+cost nothing.
+
+**The alternatives:** Restricting to the username charset — rejected:
+blocks reasonable names ("Q3 warehouse", "sandeep's fork") for no
+technical gain. A minimal trim-whitespace rule — considered, skipped:
+not worth a special case on day 4; revisit if a stray-space name ever
+confuses anyone.
+
+**The reasoning:** These names never travel as identifiers (all
+routing is by numeric id), so the only risks would be rendering and
+confusion — the first is handled by the framework, the second hasn't
+materialized.
+
+**What I deliberately cut:** Any charset rule, and any migration of
+existing names.

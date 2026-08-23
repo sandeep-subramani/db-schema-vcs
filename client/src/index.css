@@ -1083,12 +1083,19 @@ textarea.json {
   gap: 0.3rem;
 }
 
+/* The mark sits in a fixed gutter; the body wraps internally, so a
+   long line continues indented under its own text, never under the
+   +/− mark. (flex-wrap here would orphan the mark on its own row.) */
 .diff-line {
   font-size: 0.85rem;
   display: flex;
   gap: 0.45rem;
   align-items: baseline;
-  flex-wrap: wrap;
+}
+
+.diff-line-body {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .diff-line code {

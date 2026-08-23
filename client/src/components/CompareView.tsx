@@ -49,26 +49,22 @@ export function CompareView({
   const pendingLists = useRef(new Set<number>());
   const pendingSnapshots = useRef(new Set<number>());
 
+  // No cancelled flag here: these fill caches keyed by id, so a result
+  // arriving after unmount is still correct, and dropping it would
+  // strand the picker on "loading…" — the pending ref outlives the
+  // effect (StrictMode remounts included) and would block the refetch.
   useEffect(() => {
-    let cancelled = false;
     for (const branchId of new Set([from.branchId, to.branchId])) {
       if (commitLists[branchId] || pendingLists.current.has(branchId)) continue;
       pendingLists.current.add(branchId);
       api
         .listCommits(branchId)
-        .then((list) => {
-          if (!cancelled) setCommitLists((cur) => ({ ...cur, [branchId]: list }));
-        })
+        .then((list) => setCommitLists((cur) => ({ ...cur, [branchId]: list })))
         .catch((e: unknown) => {
-          if (!cancelled) {
-            setError(e instanceof ApiError ? e.message : "Couldn't load that branch's history");
-          }
+          setError(e instanceof ApiError ? e.message : "Couldn't load that branch's history");
         })
         .finally(() => pendingLists.current.delete(branchId));
     }
-    return () => {
-      cancelled = true;
-    };
   }, [from.branchId, to.branchId, commitLists]);
 
   // A side with a branch but no commit picks one automatically: the
@@ -88,26 +84,18 @@ export function CompareView({
   }, [commitLists, from, to]);
 
   useEffect(() => {
-    let cancelled = false;
     for (const commitId of [from.commitId, to.commitId]) {
       if (commitId === null) continue;
       if (snapshots[commitId] || pendingSnapshots.current.has(commitId)) continue;
       pendingSnapshots.current.add(commitId);
       api
         .getCommit(commitId)
-        .then(({ snapshot }) => {
-          if (!cancelled) setSnapshots((cur) => ({ ...cur, [commitId]: snapshot }));
-        })
+        .then(({ snapshot }) => setSnapshots((cur) => ({ ...cur, [commitId]: snapshot })))
         .catch((e: unknown) => {
-          if (!cancelled) {
-            setError(e instanceof ApiError ? e.message : "Couldn't load that version");
-          }
+          setError(e instanceof ApiError ? e.message : "Couldn't load that version");
         })
         .finally(() => pendingSnapshots.current.delete(commitId));
     }
-    return () => {
-      cancelled = true;
-    };
   }, [from.commitId, to.commitId, snapshots]);
 
   // Rename answers belong to one specific pair of versions.

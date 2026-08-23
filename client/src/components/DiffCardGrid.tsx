@@ -79,20 +79,24 @@ function WholeTable({ table, status }: { table: Table; status: "added" | "droppe
       {table.columns.map((column) => (
         <li key={column.name} className={lineClass}>
           <span className="diff-mark" aria-hidden="true">{mark}</span>
-          <code>{column.name}</code>
-          <span className="diff-line-detail">{formatColumn(column)}</span>
+          <span className="diff-line-body">
+            <code>{column.name}</code>{" "}
+            <span className="diff-line-detail">{formatColumn(column)}</span>
+          </span>
         </li>
       ))}
       {table.primaryKey && (
         <li className={lineClass}>
           <span className="diff-mark" aria-hidden="true">{mark}</span>
-          <span>Primary key: {formatPrimaryKey(table.primaryKey)}</span>
+          <span className="diff-line-body">
+            Primary key: {formatPrimaryKey(table.primaryKey)}
+          </span>
         </li>
       )}
       {(table.foreignKeys ?? []).map((fk) => (
         <li key={formatForeignKey(fk)} className={lineClass}>
           <span className="diff-mark" aria-hidden="true">{mark}</span>
-          <span>
+          <span className="diff-line-body">
             Foreign key <code>{formatForeignKey(fk)}</code>
           </span>
         </li>
@@ -107,34 +111,41 @@ function ChangeLine({ change }: { change: SchemaChange }) {
       return (
         <li className="diff-line diff-line--added">
           <span className="diff-mark" aria-hidden="true">+</span>
-          <code>{change.column.name}</code>
-          <span className="diff-line-detail">{formatColumn(change.column)}</span>
+          <span className="diff-line-body">
+            <code>{change.column.name}</code>{" "}
+            <span className="diff-line-detail">{formatColumn(change.column)}</span>
+          </span>
         </li>
       );
     case "column-dropped":
       return (
         <li className="diff-line diff-line--dropped">
           <span className="diff-mark" aria-hidden="true">−</span>
-          <code>{change.name}</code>
+          <span className="diff-line-body">
+            <code>{change.name}</code>
+          </span>
         </li>
       );
     case "column-renamed":
       return (
         <li className="diff-line diff-line--renamed">
           <span className="diff-mark" aria-hidden="true">→</span>
-          <code>{change.from}</code>
-          <span aria-hidden="true">→</span>
-          <code>{change.to}</code>
-          <span className="diff-line-detail">renamed</span>
+          <span className="diff-line-body">
+            <code>{change.from}</code> <span aria-hidden="true">→</span>{" "}
+            <code>{change.to}</code>{" "}
+            <span className="diff-line-detail">renamed</span>
+          </span>
         </li>
       );
     case "column-changed":
       return (
         <li className="diff-line diff-line--changed">
           <span className="diff-mark" aria-hidden="true">±</span>
-          <code>{change.column}</code>
-          <span className="diff-line-detail">
-            {change.changes.map(describePropertyChange).join(" · ")}
+          <span className="diff-line-body">
+            <code>{change.column}</code>{" "}
+            <span className="diff-line-detail">
+              {change.changes.map(describePropertyChange).join(" · ")}
+            </span>
           </span>
         </li>
       );
@@ -142,7 +153,7 @@ function ChangeLine({ change }: { change: SchemaChange }) {
       return (
         <li className="diff-line diff-line--changed">
           <span className="diff-mark" aria-hidden="true">±</span>
-          <span>
+          <span className="diff-line-body">
             Primary key: {formatPrimaryKey(change.from)} →{" "}
             {formatPrimaryKey(change.to)}
           </span>
@@ -152,7 +163,7 @@ function ChangeLine({ change }: { change: SchemaChange }) {
       return (
         <li className="diff-line diff-line--added">
           <span className="diff-mark" aria-hidden="true">+</span>
-          <span>
+          <span className="diff-line-body">
             Foreign key <code>{formatForeignKey(change.foreignKey)}</code>
           </span>
         </li>
@@ -161,7 +172,7 @@ function ChangeLine({ change }: { change: SchemaChange }) {
       return (
         <li className="diff-line diff-line--dropped">
           <span className="diff-mark" aria-hidden="true">−</span>
-          <span>
+          <span className="diff-line-body">
             Foreign key <code>{formatForeignKey(change.foreignKey)}</code>
           </span>
         </li>
