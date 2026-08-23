@@ -15,6 +15,7 @@ import {
   COLUMN_TYPE_IDS,
   findColumn,
   findTable,
+  fkTypesCompatible,
   type Column,
   type ColumnType,
   type ForeignKey,
@@ -385,9 +386,9 @@ function checkSemantics(schema: Schema, errors: string[]): void {
           );
         }
       }
-      if (ownColumn.type !== targetColumn.type) {
+      if (!fkTypesCompatible(ownColumn.type, targetColumn.type)) {
         errors.push(
-          `${where}: foreign key column "${fk.column}" ("${ownColumn.type}") doesn't match the type of "${fk.references.table}.${fk.references.column}" ("${targetColumn.type}")`,
+          `${where}: foreign key column "${fk.column}" ("${ownColumn.type}") doesn't match the type of "${fk.references.table}.${fk.references.column}" ("${targetColumn.type}") — types must be the same, or a whole number paired with its auto-number twin`,
         );
       }
     }

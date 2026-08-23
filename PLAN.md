@@ -85,9 +85,11 @@ scope change gets a decisions.md entry.
 ## Day 4 — product pass
 - [ ] First-run experience, empty states, human error messages
 - [ ] Readability polish on diff and merge views
-- [ ] Paste-SQL import — committed scope, no longer stretch
-      (decisions.md #8): parser lib needs dependency approval;
-      dialect type audit + mapping rows per decisions.md #9
+- [x] Paste-SQL import — committed scope, no longer stretch
+      (decisions.md #8): pgsql-ast-parser approved by measurement
+      (#23), Postgres type audit + auto-number family + FK twin rule
+      (#24), splitter + translator + skip-list preview dialog, gate
+      door enabled; 205 tests incl. pg_dump fixture
 - [ ] Stretch roadmap, in priority order (decisions.md #3, #4):
       1. migration SQL output (decisions.md #6 — stretch only)
       2. column defaults, indexes (~2–4h each, additive; single-col

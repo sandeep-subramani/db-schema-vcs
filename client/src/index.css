@@ -459,6 +459,52 @@ textarea.json {
   padding-left: 1.1rem;
 }
 
+/* --- SQL import preview --------------------------------------------------- */
+
+.sql-preview {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.sql-preview-ready {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+.sql-preview-none {
+  margin: 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sql-issues {
+  margin-top: 0.5rem;
+  max-height: 11rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.9rem;
+}
+
+.sql-issues h3 {
+  margin: 0.4rem 0 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sql-issues ul {
+  margin: 0 0 0.4rem;
+  padding-left: 1.1rem;
+}
+
+.sql-issues li {
+  margin: 0.15rem 0;
+  overflow-wrap: anywhere;
+}
+
 /* --- toast --------------------------------------------------------------- */
 
 .toast {
@@ -786,7 +832,10 @@ textarea.json {
   color: var(--muted);
 }
 
-.badge-soon {
+/* Small pill naming the supported SQL dialect(s) — grows with the
+   parser (decisions.md #23): update the label where it's rendered,
+   nothing else. */
+.badge-tag {
   font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.05em;

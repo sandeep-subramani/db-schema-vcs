@@ -954,3 +954,97 @@ user edit the landed state before committing, the server cannot tell
 a merge commit's snapshot from any other working state, so a check
 there would only pretend to verify; the UI funnel owns the
 preconditions, as stated above.
+
+---
+
+## 23. SQL parser — pgsql-ast-parser, chosen by measurement
+
+**The decision:** The paste-SQL import (#8) parses with
+`pgsql-ast-parser` v12 (deps: `moo`, `nearley` — its tokenizer and
+grammar runtime; ~48 KB gzipped in the client bundle). Postgres is
+the first and only dialect for now (#8's working assumption,
+confirmed).
+
+**The alternatives:** `node-sql-parser` — the multi-dialect option,
+preferred if it could parse Postgres, MySQL, *and* Oracle. Measured
+against a corpus of ~40 common features per dialect plus a long-tail
+corpus: MySQL 0% common misses (excellent), but **no Oracle grammar
+exists** (14 dialects offered, Oracle absent; even the most charitable
+best-of-any-grammar run rejected 53% of common Oracle DDL, including
+basic `CREATE TABLE (id NUMBER(10))`), and its Postgres grammar
+cannot read `timestamp with time zone` / `timestamptz` or
+`GENERATED ALWAYS AS IDENTITY` — near-universal forms that pg_dump
+emits, so real dumps would break immediately. Writing our own parser
+stayed rejected per #4.
+
+**The reasoning:** pgsql-ast-parser measured 0% misses on the common
+Postgres corpus — every constraint form, both pg_dump ALTER styles,
+serial, timestamptz, identity — and its tree carries exactly the
+fields the translator needs (verified before adoption). Long-tail
+misses (~38% of rare DDL: partitioned tables, triggers, grants, RLS,
+COPY data, deferrable FKs) sit almost entirely outside what the
+import consumes, and the split-then-parse-each-statement design turns
+them into skip-list lines, not failures.
+
+**Accepted tradeoffs:** Postgres-only — a future MySQL import brings
+its own parser then (node-sql-parser would be the candidate, per its
+0% MySQL score); each dialect is its own cost per #8/#9. Known gaps
+that skip whole statements: bare `REFERENCES table` without a column
+(Postgres infers the PK, the parser can't read the form — the skip
+line says how to rewrite it), unquoted non-ASCII identifiers,
+DEFERRABLE constraints, partitioned tables.
+
+**What I deliberately cut:** Any pre-rewriting of pasted SQL to paper
+over parser gaps (e.g. rewriting `timestamptz` for node-sql-parser,
+or stripping DEFERRABLE) — text surgery on input we then claim to
+have "parsed" is dishonest and fragile; the skip list tells the truth
+instead.
+
+---
+
+## 24. Postgres type audit — auto-number family, timezone stamps, twin-type FK rule, consume line
+
+**The decision:** Applying #9's strict-equivalence rule to the
+Postgres audit adds five canonical types: **Auto number
+(small/regular/large)** — used for serial/smallserial/bigserial *and*
+GENERATED AS IDENTITY, and intended for other dialects'
+serial-kind mechanisms (MySQL AUTO_INCREMENT) later — plus **Date &
+time (with time zone)** (timestamptz) and **Time (with time zone)**
+(timetz). The mapping table lives in engine/src/sql-import.ts.
+Because pg_dump spells serial as integer + sequence default, the
+importer recognizes `DEFAULT nextval(...)` and `ADD GENERATED ... AS
+IDENTITY` and upgrades the column's type. One validator change rides
+along: an FK may pair a whole number with its auto-number twin of the
+same width (serial IS an integer underneath) — otherwise every real
+dump (integer FK → serial PK) would fail validation. The editor's FK
+target picker and FK sweep follow the same rule.
+
+Types deliberately left homeless — their columns skip with a reason
+while the table imports: json/jsonb, char(n) (space-padded), real
+(4-byte float), interval, arrays, and all custom/exotic types.
+Statements consumed: CREATE TABLE, ALTER TABLE ADD CONSTRAINT, ALTER
+TABLE ADD COLUMN, plus the two auto-number patterns; everything else
+is skip-listed with a plain reason.
+
+**The alternatives:** (a) One width-less "Auto number" type —
+rejected: #9's rule is that differing widths never share a type;
+bigserial and smallserial diffing as identical would lie. (b) Strict
+FK type equality kept — rejected: real imports break; hand-fixing
+types after every import is not an import. (c) Canonical homes for
+json/jsonb, char(n), real, interval too — available for later (each
+is one mapping row + dropdown entry), declined now to keep the type
+dropdown tight; the skip list keeps the omission honest. (d) Broader
+ALTER support (DROP COLUMN, SET NOT NULL, RENAME) — declined for
+day 4 scope; the consumed set covers pg_dump entirely plus simple
+hand-written migrations.
+
+**Accepted tradeoffs:** The dropdown gains five entries (17 total).
+Identity columns lose their ALWAYS/BY DEFAULT nuance (both become
+Auto number). numeric(p,s) imports as plain Decimal number with a
+"precision dropped" note — precision/scale would be new column
+attributes, deferred with defaults/indexes (#3). A schema using a
+skipped type in a key loses that key, loudly (skip list names it).
+
+**What I deliberately cut:** Nothing silently — every declined type
+and every dropped attribute surfaces on the import's skip list, so
+the cut is visible in the product, not just in this file.

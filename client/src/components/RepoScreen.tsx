@@ -17,6 +17,7 @@ import { FirstCommitGate } from "./FirstCommitGate.tsx";
 import { HistoryPanel } from "./HistoryPanel.tsx";
 import { MergeView, type MergeLanding } from "./MergeView.tsx";
 import { ImportExportDialog } from "./ImportExportDialog.tsx";
+import { SqlImportDialog } from "./SqlImportDialog.tsx";
 import { MembersDialog } from "./MembersDialog.tsx";
 import { OverwriteDialog } from "./OverwriteDialog.tsx";
 import { TableEditor, type EditRequest } from "./TableEditor.tsx";
@@ -88,6 +89,7 @@ export function RepoScreen({
   // --- dialogs & panels ---------------------------------------------------
   const [confirm, setConfirm] = useState<EditRequest | null>(null);
   const [io, setIo] = useState<"import" | "export" | null>(null);
+  const [sqlOpen, setSqlOpen] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [unsaved, setUnsaved] = useState<UnsavedState | null>(null);
   const [conflictState, setConflictState] = useState<ConflictState | null>(null);
@@ -580,6 +582,15 @@ export function RepoScreen({
           <button
             type="button"
             className="btn"
+            onClick={() => setSqlOpen(true)}
+            disabled={!schema}
+            title="Postgres SQL — more dialects later"
+          >
+            Import SQL <span className="badge-tag">Postgres</span>
+          </button>
+          <button
+            type="button"
+            className="btn"
             onClick={() => setIo("export")}
             disabled={!schema}
           >
@@ -679,6 +690,7 @@ export function RepoScreen({
               }
             }}
             onImportJson={() => setIo("import")}
+            onImportSql={() => setSqlOpen(true)}
             onLoadExample={() =>
               applyEdit(EXAMPLE_SCHEMA, "Example schema loaded — not saved yet")
             }
@@ -775,6 +787,15 @@ export function RepoScreen({
           onImport={(imported) => {
             applyEdit(imported, "Imported schema — not saved yet");
             setIo(null);
+          }}
+        />
+      )}
+      {sqlOpen && schema && (
+        <SqlImportDialog
+          onClose={() => setSqlOpen(false)}
+          onImport={(imported) => {
+            applyEdit(imported, "SQL imported — not saved yet");
+            setSqlOpen(false);
           }}
         />
       )}

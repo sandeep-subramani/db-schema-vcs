@@ -302,3 +302,42 @@ Entry format:
   branch-relatedness walk), plus a scripted end-to-end run against a
   real server and database: conflict → resolve → land on the parent →
   merge commit → base moved → re-merge finds nothing.
+
+- **[2026-08-23] Paste-SQL import (Postgres)** — The third door on the
+  gate page is now real: paste `CREATE TABLE` statements or a whole
+  `pg_dump --schema-only` file, preview, import. Words used below: a
+  *parser* turns SQL text into a structured tree (the way a browser
+  turns HTML text into elements); the *translator* is our code that
+  walks that tree and fills in our own snapshot shape; the *skip list*
+  is the report of everything in the paste we chose not to carry over.
+  The parser is a library, `pgsql-ast-parser` (decisions.md #23) — we
+  measured it against every common DDL form before adopting it. The
+  translator (engine/src/sql-import.ts, pure function, engine-side)
+  consumes exactly three statement kinds — CREATE TABLE, ALTER TABLE
+  ADD CONSTRAINT, ALTER TABLE ADD COLUMN — and everything else becomes
+  a skip-list line with a plain reason ("indexes aren't versioned
+  yet"), never a failed import. That resilience comes from splitting
+  first: our own splitter (sql-split.ts) cuts the paste into
+  statements while respecting strings, comments, and dollar-quoted
+  bodies, so each statement parses alone and one unreadable statement
+  costs one line, not the paste. Two Postgres habits needed special
+  care. First, pg_dump never writes the word `serial` — it writes a
+  plain integer column plus a separate "fill this from a sequence"
+  default; the translator recognizes that pattern (and the newer
+  GENERATED AS IDENTITY form) and upgrades the column to the new
+  "Auto number" type (decisions.md #24). Second, real schemas point
+  plain-integer foreign keys at serial primary keys, so the validator
+  learned one compatibility: a whole number may reference its
+  auto-number twin of the same width — nothing else changed. Types
+  map through a fixed table (#9's audit, logged in #24): equal types
+  map, near-misses don't — a column whose type has no home (jsonb,
+  char(n), real, interval, arrays, custom types) is skipped with a
+  reason while its table still imports, and any key that leaned on a
+  skipped column is dropped loudly, not silently. The import screen
+  enforces see-then-accept: Import only arms after Preview, which
+  shows table/column counts and the grouped skip list. The output
+  passes the same validateSchema gate as JSON import and lands the
+  same way (working state, undoable, not saved). Verified: 205 tests
+  green — splitter edge cases, the full type table, FK resolution
+  across statement order, dropped-key reasons, and a realistic
+  pg_dump fixture asserting both the schema and the skip list.

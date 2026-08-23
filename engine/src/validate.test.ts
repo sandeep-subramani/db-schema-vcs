@@ -520,3 +520,40 @@ describe("schema helpers", () => {
     }
   });
 });
+
+describe("foreign-key type compatibility (auto-number twins)", () => {
+  function fkSchema(sourceType: string, targetType: string) {
+    return {
+      tables: [
+        {
+          name: "users",
+          columns: [{ name: "id", type: targetType, nullable: false }],
+          primaryKey: ["id"],
+        },
+        {
+          name: "orders",
+          columns: [{ name: "user_id", type: sourceType, nullable: false }],
+          foreignKeys: [
+            { column: "user_id", references: { table: "users", column: "id" } },
+          ],
+        },
+      ],
+    };
+  }
+
+  it("accepts a whole number referencing its auto-number twin, both ways", () => {
+    expect(validateSchema(fkSchema("whole-number", "auto-number")).ok).toBe(true);
+    expect(validateSchema(fkSchema("auto-number", "whole-number")).ok).toBe(true);
+    expect(
+      validateSchema(fkSchema("whole-number-large", "auto-number-large")).ok,
+    ).toBe(true);
+  });
+
+  it("rejects cross-width pairs and unrelated types", () => {
+    expect(errorsOf(fkSchema("whole-number-small", "auto-number"))[0]).toContain(
+      "auto-number twin",
+    );
+    expect(errorsOf(fkSchema("auto-number", "auto-number-large"))).toHaveLength(1);
+    expect(errorsOf(fkSchema("text", "auto-number"))).toHaveLength(1);
+  });
+});

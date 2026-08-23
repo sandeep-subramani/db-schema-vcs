@@ -15,6 +15,7 @@
 import {
   findColumn,
   findTable,
+  fkTypesCompatible,
   type Column,
   type ColumnType,
   type ForeignKey,
@@ -328,8 +329,9 @@ export function removeForeignKey(
 
 /**
  * Columns a new foreign key of the given type may point at: unique on
- * their own (single-column primary key, or marked unique) and of the
- * same type — the same rule the engine validator enforces.
+ * their own (single-column primary key, or marked unique) and of a
+ * compatible type (same, or a whole number's auto-number twin) — the
+ * same rule the engine validator enforces.
  */
 export function validFkTargets(
   schema: Schema,
@@ -338,7 +340,7 @@ export function validFkTargets(
   const targets: { table: string; column: string }[] = [];
   for (const table of schema.tables) {
     for (const column of table.columns) {
-      if (column.type === type && isUniqueOnOwn(table, column)) {
+      if (fkTypesCompatible(column.type, type) && isUniqueOnOwn(table, column)) {
         targets.push({ table: table.name, column: column.name });
       }
     }
@@ -416,6 +418,8 @@ function fkProblem(schema: Schema, owner: Table, fk: ForeignKey): string | null 
   if (!isUniqueOnOwn(target, targetColumn)) {
     return "the column it points at is no longer unique";
   }
-  if (own.type !== targetColumn.type) return "the column types no longer match";
+  if (!fkTypesCompatible(own.type, targetColumn.type)) {
+    return "the column types no longer match";
+  }
   return null;
 }

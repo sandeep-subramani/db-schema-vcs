@@ -12,13 +12,18 @@ export const COLUMN_TYPES = {
   "whole-number-small": "Whole number (small)",
   "whole-number": "Whole number",
   "whole-number-large": "Whole number (large)",
+  "auto-number-small": "Auto number (small)",
+  "auto-number": "Auto number",
+  "auto-number-large": "Auto number (large)",
   "decimal-number": "Decimal number (exact)",
   "floating-point": "Floating point (approximate)",
   "text": "Text",
   "true-false": "True / false",
   "date": "Date",
   "time": "Time",
+  "time-tz": "Time (with time zone)",
   "date-time": "Date & time",
+  "date-time-tz": "Date & time (with time zone)",
   "unique-id": "Unique ID",
   "binary-data": "Binary data",
 } as const;
@@ -71,4 +76,19 @@ export function findTable(schema: Schema, name: string): Table | undefined {
 
 export function findColumn(table: Table, name: string): Column | undefined {
   return table.columns.find((c) => c.name === name);
+}
+
+// An auto number is a whole number that the database fills in itself
+// (Postgres serial/identity, MySQL AUTO_INCREMENT). Underneath it IS
+// a plain integer of the same width, so a foreign key may pair a
+// whole number with its auto-number twin — exactly what every real
+// schema does (orders.user_id integer → users.id serial).
+const AUTO_NUMBER_TWIN: Partial<Record<ColumnType, ColumnType>> = {
+  "auto-number-small": "whole-number-small",
+  "auto-number": "whole-number",
+  "auto-number-large": "whole-number-large",
+};
+
+export function fkTypesCompatible(a: ColumnType, b: ColumnType): boolean {
+  return a === b || AUTO_NUMBER_TWIN[a] === b || AUTO_NUMBER_TWIN[b] === a;
 }

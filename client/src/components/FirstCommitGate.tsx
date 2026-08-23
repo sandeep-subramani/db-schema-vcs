@@ -1,16 +1,16 @@
 // The first-commit gate (decisions.md #14): a brand-new branch with
 // nothing in it opens on its entry doors instead of a blank editor.
-// The disabled SQL door is deliberate — a standing reminder that SQL
-// import is committed scope (decisions.md #8), not a hidden gap.
 export function FirstCommitGate({
   branchName,
   onStartEditing,
   onImportJson,
+  onImportSql,
   onLoadExample,
 }: {
   branchName: string;
   onStartEditing: () => void;
   onImportJson: () => void;
+  onImportSql: () => void;
   onLoadExample: () => void;
 }) {
   return (
@@ -33,12 +33,13 @@ export function FirstCommitGate({
             Bring in a schema snapshot — the format Export produces.
           </span>
         </button>
-        <button type="button" className="door" disabled title="SQL import is on the roadmap — not built yet">
+        <button type="button" className="door" onClick={onImportSql}>
           <span className="door-title">
-            Paste SQL <span className="badge-soon">coming soon</span>
+            Paste SQL <span className="badge-tag">Postgres</span>
           </span>
           <span className="door-desc">
-            Paste CREATE TABLE statements from a real database.
+            Paste CREATE TABLE statements or a pg_dump file from a real
+            Postgres database. More dialects later.
           </span>
         </button>
       </div>

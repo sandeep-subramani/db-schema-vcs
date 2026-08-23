@@ -451,8 +451,8 @@ function ForeignKeySection({
           {targets.length === 0 ? (
             <span className="cell-muted fk-no-target">
               no valid target — needs a column of type “{COLUMN_TYPES[chosen.type]}”
-              that is unique on its own (single-column primary key, or marked
-              unique)
+              (or its auto-number twin) that is unique on its own
+              (single-column primary key, or marked unique)
             </span>
           ) : (
             <>
