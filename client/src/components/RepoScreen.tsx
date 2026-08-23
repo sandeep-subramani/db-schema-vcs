@@ -756,6 +756,13 @@ export function RepoScreen({
                     />
                   ) : (
                     <div className="empty empty--main">
+                      {/* A table card that isn't there yet: dashed
+                          outline, three placeholder column bars. */}
+                      <div className="empty-glyph" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
                       <h2>Nothing here yet</h2>
                       <p>
                         A schema is a set of tables. Add your first one in the

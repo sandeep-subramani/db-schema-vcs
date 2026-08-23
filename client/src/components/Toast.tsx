@@ -28,7 +28,8 @@ export function Toast({
   if (!toast) return null;
   return (
     <div className="toast" role="status">
-      <span>{toast.message}</span>
+      <span className="toast-dot" aria-hidden="true" />
+      <span className="toast-text">{toast.message}</span>
       {toast.undoable && (
         <button type="button" className="toast-undo" onClick={onUndo}>
           Undo

@@ -50,13 +50,19 @@ export function TableEditor({
   return (
     <section className="table-editor" aria-label={`Table ${table.name}`}>
       <header className="table-editor-head">
-        <NameField
-          className="table-name"
-          value={table.name}
-          ariaLabel="Table name"
-          problem={(name) => tableNameProblem(schema, name, table.name)}
-          onCommit={(name) => onRenameTable(table.name, name)}
-        />
+        <div className="table-editor-title">
+          <NameField
+            className="table-name"
+            value={table.name}
+            ariaLabel="Table name"
+            problem={(name) => tableNameProblem(schema, name, table.name)}
+            onCommit={(name) => onRenameTable(table.name, name)}
+          />
+          <span className="column-count">
+            {table.columns.length}{" "}
+            {table.columns.length === 1 ? "column" : "columns"}
+          </span>
+        </div>
         <button
           type="button"
           className="btn btn--danger"
@@ -75,173 +81,177 @@ export function TableEditor({
       {table.columns.length === 0 ? (
         <p className="empty">No columns yet — add the first one below.</p>
       ) : (
-        <table className="columns-table">
-          <thead>
-            <tr>
-              <th>Column</th>
-              <th>Type</th>
-              <th title="Primary key">PK</th>
-              <th title="Allows empty (NULL) values">Nullable</th>
-              <th title="Every row must have a distinct value">Unique</th>
-              <th>Max length</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {table.columns.map((column) => (
-              <tr key={column.name}>
-                <td>
-                  <NameField
-                    value={column.name}
-                    ariaLabel={`Name of column ${column.name}`}
-                    problem={(name) => columnNameProblem(table, name, column.name)}
-                    onCommit={(name) =>
-                      onEdit({
-                        result: renameColumn(schema, table.name, column.name, name),
-                      })
-                    }
-                  />
-                </td>
-                <td>
-                  <select
-                    value={column.type}
-                    aria-label={`Type of column ${column.name}`}
-                    onChange={(e) =>
-                      onEdit({
-                        result: setColumnType(
-                          schema,
-                          table.name,
-                          column.name,
-                          e.target.value as ColumnType,
-                        ),
-                        confirmTitle: `Change the type of "${table.name}.${column.name}"?`,
-                      })
-                    }
-                  >
-                    {COLUMN_TYPE_IDS.map((id) => (
-                      <option key={id} value={id}>
-                        {COLUMN_TYPES[id]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="cell-center">
-                  <input
-                    type="checkbox"
-                    checked={inPk(column.name)}
-                    disabled={column.nullable}
-                    title={
-                      column.nullable
-                        ? "Nullable columns can't be in the primary key"
-                        : undefined
-                    }
-                    aria-label={`${column.name} in primary key`}
-                    onChange={(e) =>
-                      onEdit({
-                        result: setPrimaryKeyMembership(
-                          schema,
-                          table.name,
-                          column.name,
-                          e.target.checked,
-                        ),
-                        confirmTitle: `Change the primary key of "${table.name}"?`,
-                      })
-                    }
-                  />
-                </td>
-                <td className="cell-center">
-                  <input
-                    type="checkbox"
-                    checked={column.nullable}
-                    disabled={inPk(column.name)}
-                    title={
-                      inPk(column.name)
-                        ? "Primary-key columns can't be nullable"
-                        : undefined
-                    }
-                    aria-label={`${column.name} nullable`}
-                    onChange={(e) =>
-                      onEdit({
-                        result: setColumnNullable(
-                          schema,
-                          table.name,
-                          column.name,
-                          e.target.checked,
-                        ),
-                      })
-                    }
-                  />
-                </td>
-                <td className="cell-center">
-                  <input
-                    type="checkbox"
-                    checked={column.unique === true}
-                    aria-label={`${column.name} unique`}
-                    onChange={(e) =>
-                      onEdit({
-                        result: setColumnUnique(
-                          schema,
-                          table.name,
-                          column.name,
-                          e.target.checked,
-                        ),
-                        confirmTitle: `Remove unique from "${table.name}.${column.name}"?`,
-                      })
-                    }
-                  />
-                </td>
-                <td>
-                  {column.type === "text" ? (
-                    <LengthField
-                      value={column.maxLength}
-                      ariaLabel={`Max length of ${column.name}`}
-                      onCommit={(len) =>
+        <div className="columns-panel">
+          <table className="columns-table">
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Type</th>
+                <th title="Primary key">PK</th>
+                <th title="Allows empty (NULL) values">Nullable</th>
+                <th title="Every row must have a distinct value">Unique</th>
+                <th>Max length</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {table.columns.map((column) => (
+                <tr key={column.name}>
+                  <td>
+                    <NameField
+                      value={column.name}
+                      ariaLabel={`Name of column ${column.name}`}
+                      problem={(name) => columnNameProblem(table, name, column.name)}
+                      onCommit={(name) =>
                         onEdit({
-                          result: setColumnMaxLength(
+                          result: renameColumn(schema, table.name, column.name, name),
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={column.type}
+                      aria-label={`Type of column ${column.name}`}
+                      onChange={(e) =>
+                        onEdit({
+                          result: setColumnType(
                             schema,
                             table.name,
                             column.name,
-                            len,
+                            e.target.value as ColumnType,
+                          ),
+                          confirmTitle: `Change the type of "${table.name}.${column.name}"?`,
+                        })
+                      }
+                    >
+                      {COLUMN_TYPE_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {COLUMN_TYPES[id]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="cell-center">
+                    <input
+                      type="checkbox"
+                      checked={inPk(column.name)}
+                      disabled={column.nullable}
+                      title={
+                        column.nullable
+                          ? "Nullable columns can't be in the primary key"
+                          : undefined
+                      }
+                      aria-label={`${column.name} in primary key`}
+                      onChange={(e) =>
+                        onEdit({
+                          result: setPrimaryKeyMembership(
+                            schema,
+                            table.name,
+                            column.name,
+                            e.target.checked,
+                          ),
+                          confirmTitle: `Change the primary key of "${table.name}"?`,
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="cell-center">
+                    <input
+                      type="checkbox"
+                      checked={column.nullable}
+                      disabled={inPk(column.name)}
+                      title={
+                        inPk(column.name)
+                          ? "Primary-key columns can't be nullable"
+                          : undefined
+                      }
+                      aria-label={`${column.name} nullable`}
+                      onChange={(e) =>
+                        onEdit({
+                          result: setColumnNullable(
+                            schema,
+                            table.name,
+                            column.name,
+                            e.target.checked,
                           ),
                         })
                       }
                     />
-                  ) : (
-                    <span className="cell-muted">—</span>
-                  )}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn--ghost-danger"
-                    aria-label={`Delete column ${column.name}`}
-                    onClick={() =>
-                      onEdit({
-                        result: deleteColumn(schema, table.name, column.name),
-                        confirmTitle: `Delete column "${table.name}.${column.name}"?`,
-                        toast: `Deleted column "${table.name}.${column.name}"`,
-                      })
-                    }
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="cell-center">
+                    <input
+                      type="checkbox"
+                      checked={column.unique === true}
+                      aria-label={`${column.name} unique`}
+                      onChange={(e) =>
+                        onEdit({
+                          result: setColumnUnique(
+                            schema,
+                            table.name,
+                            column.name,
+                            e.target.checked,
+                          ),
+                          confirmTitle: `Remove unique from "${table.name}.${column.name}"?`,
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    {column.type === "text" ? (
+                      <LengthField
+                        value={column.maxLength}
+                        ariaLabel={`Max length of ${column.name}`}
+                        onCommit={(len) =>
+                          onEdit({
+                            result: setColumnMaxLength(
+                              schema,
+                              table.name,
+                              column.name,
+                              len,
+                            ),
+                          })
+                        }
+                      />
+                    ) : (
+                      <span className="cell-muted">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn--ghost-danger"
+                      aria-label={`Delete column ${column.name}`}
+                      onClick={() =>
+                        onEdit({
+                          result: deleteColumn(schema, table.name, column.name),
+                          confirmTitle: `Delete column "${table.name}.${column.name}"?`,
+                          toast: `Deleted column "${table.name}.${column.name}"`,
+                        })
+                      }
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <p className="pk-summary">
-        Primary key:{" "}
-        {table.primaryKey ? (
-          <strong>{table.primaryKey.join(" + ")}</strong>
-        ) : (
-          <span className="cell-muted">none — tick PK on a column</span>
-        )}
-      </p>
+      <div className="columns-foot">
+        <p className="pk-summary">
+          Primary key:{" "}
+          {table.primaryKey ? (
+            <strong>{table.primaryKey.join(" + ")}</strong>
+          ) : (
+            <span className="cell-muted">none — tick PK on a column</span>
+          )}
+        </p>
 
-      <AddColumnForm table={table} schema={schema} onEdit={onEdit} />
+        <AddColumnForm table={table} schema={schema} onEdit={onEdit} />
+      </div>
 
       <ForeignKeySection schema={schema} table={table} onEdit={onEdit} />
     </section>

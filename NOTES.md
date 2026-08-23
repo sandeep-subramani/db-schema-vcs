@@ -569,3 +569,103 @@ disabled (decisions.md #25) and dimming it is how you can tell; a
 solid violet button that does nothing would undo that decision. And
 the username chip keeps its faint pill border so it matches the repo
 list page, where the same class was signed off last pass.
+
+## UI redesign — the schema editor (sidebar + table editor)
+
+The editor is the screen you spend the most time on, so this pass was
+mostly about giving its parts edges. Three things got a container they
+didn't have: the column grid, the add-a-table form, and the empty
+worktop.
+
+The column grid now sits inside a rounded panel (`.columns-panel`)
+with a tinted header strip and hairlines between rows, so a table
+reads as one sheet instead of loose text on the dot grid. The wrapper
+also earns its keep on a narrow window: it scrolls sideways rather
+than squeezing the type dropdowns into nothing. Checkboxes are drawn
+by us now (`appearance: none`, a rounded box, violet fill plus a CSS
+tick when on) because the native ones ignored the palette. Column
+names, type values, max lengths and the primary-key summary are all
+mono — they're identifiers, same rule as everywhere else.
+
+Under the sheet, "Primary key: id" and the add-a-column form share one
+row (`.columns-foot`), the form pushed to the right edge. Foreign keys
+are separated by a dashed rule rather than a solid one: the section
+below is about links, not more of the same table.
+
+In the sidebar, the table list rows got a branch-line tick before the
+name — dim on the closed tables, violet on the open one — plus a
+bordered, tinted card for the row you're on. The add-a-table form is
+now a small card of its own so it stops reading as another list item.
+Its button is the violet primary while the schema is empty (it's the
+only thing to do) and a quiet neutral fill once tables exist.
+
+On an empty schema the sidebar also offers three dashed rows —
+`users`, `products`, `orders` — under a SUGGESTED STARTERS label.
+That's the one behaviour change in this pass, approved before it was
+written: each row calls exactly what the Add table form calls
+(`addTable` then select), so undo, dirty state and name validation
+behave identically. They only render while the schema has no tables,
+so a starter can never collide with an existing name.
+
+The empty worktop got the drawing it was missing: a dashed card with
+three placeholder column bars above "Nothing here yet", which is now
+set as a real heading rather than muted body text.
+
+The toast changed colour scheme. It used to be an inverted black
+lozenge; it's now the panel colour with a border, an amber dot for
+"not saved yet", and Undo as a violet-tinted pill instead of
+underlined text — a floating sheet like everything else on the
+worktop, rather than a system notification.
+
+One CSS note worth knowing: the table name input uses
+`field-sizing: content` so the `4 columns` chip can sit right beside
+the name. Browsers without it (Safari) fall back to the default input
+width, which just means the chip sits further right.
+
+## The editor's dialogs, restyled
+
+Eight dialogs were still wearing the old chrome: unsaved changes,
+import JSON, import SQL, export JSON, share, new branch, commit and
+the delete-table confirm. They now share one shell — the same panel
+colour, border and rounded corner as the editor's cards — floating
+over a scrim that dims *and* slightly blurs the page behind it, so a
+dialog reads as a sheet lifted off the worktop rather than a box
+pasted on top of it.
+
+Inside the shell, four pieces are shared:
+
+- A title row that can carry a small square glyph tile before the
+  words. Amber for "careful, you'll lose work" (unsaved changes, and
+  the stale-save dialog which had no reference image but is the same
+  kind of warning), red for "this destroys something" (delete table).
+  The tile means you know the temperature of a dialog before reading
+  it.
+- Prompt fields — branch name, commit message, username to add — are
+  a small label over a full-width mono box with the same violet focus
+  halo the login field uses.
+- The paste areas (JSON, SQL) are one recessed mono panel each,
+  roughly a screenful tall, and the file picker under them is now a
+  proper row: "…or choose a file:", a neutral filled *Choose file*
+  button, then the file name. That button is the browser's own,
+  restyled through `::file-selector-button` — no markup or logic
+  involved.
+- Actions sit right-aligned in one row: violet fill for the action
+  the dialog is named after, plain outline for cancel, and a red
+  outline for the destructive choice (Discard changes, Remove them
+  and continue).
+
+Two dialogs got more than the shell. The delete-table confirm turns
+the cascade list into tinted danger callouts, one per line, each
+marked with a mono `−` — the same minus the diff view uses for a
+removal — under a bold "This also removes:". Sharing turns each
+person into a card with a gradient avatar, their handle in mono and a
+role pill, violet for the owner; its *Add member* button is
+violet-tinted rather than filled so the solid violet stays on *Close*,
+the way the reference has it.
+
+One thing the reference does that we can't: it sets the identifiers
+inside a collateral line (`orders.user_id → users.id`) in mono while
+the rest of the sentence stays in the UI face. Those lines arrive from
+the engine as finished sentences, so picking the identifier out would
+mean parsing strings in the view or changing what the engine emits —
+logic, not presentation. The line stays in one face for now.

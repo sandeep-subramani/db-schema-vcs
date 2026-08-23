@@ -145,4 +145,23 @@ scope change gets a decisions.md entry.
       with a live dot, History count badge. The reference's
       full-strength `Commit…` was not copied: it's disabled here
       (decisions.md #25)
+- [x] Schema editor (both states): column grid in a rounded panel with
+      a tinted header strip and drawn checkboxes, mono identifiers,
+      primary key + add-column on one row, dashed rule before foreign
+      keys; sidebar rows with a branch-line tick and a card for the
+      add-a-table form; dashed SUGGESTED STARTERS rows on an empty
+      schema (the one approved behaviour change — they reuse the Add
+      table path); dashed-card glyph on the empty worktop; toast
+      restyled as a panel lozenge with an amber dot
+- [x] Editor dialogs: one shared shell for all eight (blurred
+      overlay, radius-16 panel, 600/700/620 widths, warn/danger glyph
+      tile beside the title, prompt fields with the login focus halo,
+      recessed paste areas, `::file-selector-button` file row,
+      right-aligned action row). Delete-table confirm shows its
+      cascade as tinted danger callouts with a mono `−`; Share became
+      avatar + mono handle + role pill cards with a violet-tinted Add
+      member. OverwriteDialog has no reference but took the amber
+      glyph as a sibling warning. Not copied: the reference sets the
+      identifiers inside a collateral line in mono — the engine emits
+      those lines as finished sentences (NOTES.md)
 - [ ] Remaining views, one reference image at a time

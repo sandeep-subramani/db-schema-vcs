@@ -33,7 +33,12 @@ export function UnsavedDialog({
         aria-label="Unsaved changes"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2>You have unsaved changes</h2>
+        <div className="dialog-head">
+          <span className="dialog-icon dialog-icon--warn" aria-hidden="true">
+            !
+          </span>
+          <h2>You have unsaved changes</h2>
+        </div>
         <p className="dialog-hint">
           Save them before you {actionLabel}, or discard them — discarded
           changes are gone for good.
