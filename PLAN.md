@@ -61,15 +61,24 @@ scope change gets a decisions.md entry.
       branch-point marker row, GET /commits/:id endpoint
 
 ## Day 3 — merge
-- [ ] Three-way merge: auto-merge changes that don't overlap
-- [ ] Arbitrary version picker — committed scope, not skippable
-      (decisions.md #19): any commit vs any commit incl. cross-branch,
-      reusing the card grid; label/restrict unrelated pairs
-- [ ] Conflict detection: same column retyped both sides, rename
+- [x] Three-way merge engine: auto-merge changes that don't overlap,
+      agreements apply once, pick-a-side conflicts in grouped bundles
+      (decisions.md #20), rename questions per side, 48 tests incl.
+      symmetry + every-resolution-combination-validates
+- [x] Conflict detection: same column retyped both sides, rename
       collisions, FK added to a table the other branch dropped,
       unique removed while the other branch adds an FK targeting it
-      (decisions.md #10)
-- [ ] Merge / conflict-resolution UX v1 + tests
+      (decisions.md #10), retype-vs-length (#9), nullable-vs-PK —
+      all in the engine test catalogue
+- [ ] Merge API + flow (decisions.md #20): git-strict preconditions,
+      landing in parent working state, merge-commit + base advance in
+      one transaction
+- [ ] Merge / conflict-resolution UX v1 (compose two card grids,
+      pick-a-side conflict cards, rename-question banner reuse)
+- [ ] Arbitrary version picker — committed scope, not skippable
+      (decisions.md #19, #21): any commit vs any commit incl.
+      cross-branch, reusing the card grid; unrelated pairs labeled,
+      rename questions suppressed there
 
 ## Day 4 — product pass
 - [ ] First-run experience, empty states, human error messages

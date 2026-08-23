@@ -808,3 +808,87 @@ checklist).
 read-only view doesn't earn storage; merge will collect its own at
 merge time). Diffing on the gate/empty states. Any caching layer for
 commit snapshots — they're KB-sized reads.
+
+---
+
+## 20. Merge model — pick-a-side conflicts in grouped bundles, review-then-commit landing, git-strict inputs, branch survives with base advance
+
+**The decision:** Four calls shaping day-3 merge. (1) *Resolution is
+pick-a-side:* every conflict presents what each side did and the user
+keeps one side. Colliding changes are bundled into connected groups
+(if A collides with B and B with C, one pick decides all three), so
+any combination of picks always yields a valid schema — each side's
+own change list came from a valid snapshot, so keeping a whole group
+from one side can't contradict itself. (2) *Landing:* a finished merge
+does not auto-commit; it lands as the parent branch's saved working
+state, where the existing "Review changes" diff and the editor are the
+review step, and an explicit commit (prefilled message) makes it
+history — decisions.md #15's deliberate-commit philosophy extended to
+merges, and the editor doubles as the escape hatch when neither side
+of a conflict is what the user wants. (3) *Inputs are git-strict:* the
+merge merges the branch's latest commit into the parent's latest
+commit; both branches' working states must be clean first (the UI
+funnels through the existing save/commit dialogs), so "merged commit X
+into commit Y" is always a true sentence. (4) *The source branch
+survives the merge* and its stored base advances to the tip that was
+merged, at the moment the merge commit lands on the parent (one
+transaction), so continued work on the branch re-merges cleanly
+instead of re-flagging everything already absorbed.
+
+**The alternatives:** (1) Per-collision independent picks — rejected:
+picks could combine into an invalid schema (keep a retype from one
+side and a new FK from the other and the types no longer match); a
+free-form three-pane merge editor — rejected as day-eating, and the
+landing choice provides free-form editing anyway. (2) Auto-commit onto
+the parent (git-like) — rejected by the product owner: the result
+becomes history sight-unseen; accepted cost of the chosen shape is
+that a merged-but-uncommitted working state can sit around (mitigated
+by the dirty indicator), and that the merge overwrites the parent's
+working state — which is why (3) requires it clean. (3) Merging saved
+working states — rejected: working states aren't versions, so history
+couldn't say what was merged, and the concurrent-edit corners
+multiply. (4) Deleting the branch on merge (PR-style) — rejected: kills
+the keep-working story and needs deletion plumbing that doesn't exist;
+a delete-after-merge checkbox stays a cheap future option. Advancing
+the base at merge-*compute* time instead of merge-commit time —
+rejected: the parent could still discard the landed working state, and
+the base would already have moved.
+
+**The reasoning:** Pick-a-side with grouped bundles is the smallest
+resolution model that is both readable and provably safe, and the
+working-state landing reuses two screens that already exist (diff
+review, editor) instead of building a third. Accepted residual corner,
+stated plainly: if the user commits the landed merge without the
+merge marker (e.g. after a reload loses the pending-merge context),
+the branch's base never advances — nothing corrupts, since identical
+changes on both sides merge silently clean, but a later merge may
+re-ask rename questions it shouldn't.
+
+**What I deliberately cut:** Any persistence of conflict resolutions
+(they die with the merge attempt, like the diff view's rename
+answers). Merge of dirty working states in any form.
+
+---
+
+## 21. Version picker — every pair allowed, unrelated pairs labeled, rename questions suppressed there
+
+**The decision:** The day-3 arbitrary version picker (#19) allows any
+commit vs any commit, including across branches. Pairs with no
+ancestor relation (neither commit's branch is on the other's parent
+chain) still render, but under an explicit banner — "different
+branches: showing what differs, not what anyone did" — and rename
+questions are suppressed for those pairs (differences show as plain
+drop+add), because a rename question implies an edit history that
+doesn't exist between unrelated versions.
+
+**The alternatives:** Restricting pickable pairs to same-branch or
+ancestor-line — rejected: comparing two sibling branches' takes on the
+same feature is a legitimate use, and #19 committed to "any commit vs
+any commit". Allowing rename questions everywhere — rejected: answers
+to a question about a history nobody authored are noise at best.
+
+**The reasoning:** Full comparison power with honest framing; the
+relatedness check is a cheap walk over stored parent pointers.
+
+**What I deliberately cut:** Nothing beyond the suppression; the
+banner copy is a day-4 polish candidate.

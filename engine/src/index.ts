@@ -6,3 +6,4 @@ export * from "./validate.ts";
 export * from "./example.ts";
 export * from "./diff.ts";
 export * from "./apply.ts";
+export * from "./merge.ts";

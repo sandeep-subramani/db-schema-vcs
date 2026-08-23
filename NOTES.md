@@ -203,3 +203,37 @@ Entry format:
   headless browser: question asked and answered, working review with a
   dropped table, first-commit-vs-empty, and the branch-point marker —
   zero console errors.
+
+- **[2026-08-23] Merge engine (`mergeSchemas`)** — The three-way merge,
+  pure functions like the rest of the engine. Picture two people
+  marking up photocopies of the same original page: you don't compare
+  the copies to each other, you hold each against the original and
+  list what each person changed. The original is the branch-point
+  snapshot we stored when the branch was created (decisions.md #7), and
+  the listing is `diffSchemas` run twice — rename questions included,
+  each labeled with the side it came from, and answered first because
+  an unanswered rename still reads as drop+add. Then every change is
+  sorted three ways: touching different things → both apply; the same
+  change on both sides → applies once (agreement, not conflict); the
+  same thing changed differently → a conflict the user resolves by
+  picking a side. "Differently" includes combinations only the
+  validator would catch: an FK added to a table the other side
+  dropped, unique removed under a new FK (with the honest exception:
+  no conflict if the target's sole primary key still justifies the
+  FK), a column retyped away from text while the other side set a text
+  length (decisions.md #9's case), nullable-vs-primary-key, and rename
+  collisions. Colliding changes are bundled into connected groups so
+  one pick decides each tangle — and because each side's list came
+  from a valid schema, any combination of picks yields a valid schema
+  (a test literally tries every combination). To compare "the same
+  thing" across sides, both change lists are respelled into the base's
+  names first; to build the result, survivors are respelled again
+  through both sides' surviving renames and replayed with `applyDiff`
+  (renames first), so an edit from one side lands on a column the
+  other side renamed — references follow the object, decisions.md #17.
+  The merged schema runs through `validateSchema` before anyone sees
+  it; the suite also pins symmetry (swap the sides: same conflicts,
+  mirrored) and that untouched-side merges equal the touched side.
+  48 tests. The API/UX flow around this (working-state landing,
+  git-strict inputs, base advance — decisions.md #20) is the next
+  step; nothing server-side changed yet.
