@@ -415,3 +415,33 @@ the current choice. No styling effort spent — the UI refactor will
 replace it. The username gate screen has no top bar and so no button,
 but a saved choice still applies there because it's set at startup,
 before anything renders.
+
+## UI redesign — pass 1: login page + theme switcher
+
+First view of the view-by-view redesign (branch ui-redesign), built
+against the reference images in design/. Three things changed, and
+only the last one touches behavior:
+
+The design tokens flipped app-wide. Same token names in index.css
+(--bg, --panel, --accent…), new values: near-black neutral ground
+instead of navy, violet accent instead of cyan, plus a magenta
+partner color (--accent-2) for "the other branch" in diagrams. A new
+--frame token paints the dark chrome border that now rounds the whole
+app like a sheet on a desk, and primary buttons became solid violet
+fills instead of outlines. Headings and body now use Space Grotesk,
+loaded from Google Fonts in index.html. Un-redesigned views inherit
+the new palette immediately; each gets its own pass later.
+
+The login page went from one centered card to a two-column hero:
+left side is the pitch (title, a decorative branch/merge diagram
+drawn with absolutely-positioned chips over a gradient rail, and
+three one-line feature explanations), right side is the same claim
+form as before — identical state, validation, error and busy
+handling, just re-arranged markup.
+
+The theme switcher is the one real rebuild (the old cycling button
+was an explicit placeholder): now an icon button opening a panel
+with three preview cards — Dark, Light, System — checkmark on the
+active one. Picking applies instantly and keeps the panel open so
+you can compare; outside click or Escape closes. theme.ts (the
+actual mechanism) is untouched.

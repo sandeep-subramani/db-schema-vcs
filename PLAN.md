@@ -118,3 +118,13 @@ scope change gets a decisions.md entry.
 - [ ] decisions.md full read-through: specific, honest, complete
 - [ ] Fresh-clone setup test + smoke test of the deployed URL
 - [ ] Buffer for whatever slipped
+
+## UI redesign (branch ui-redesign, view by view)
+- [x] Global look: token flip (violet accent, near-black ground,
+      magenta branch color, dark rounded app frame), Space Grotesk
+      webfont, primary buttons as solid fills
+- [x] Login page: two-column hero (branch/merge diagram + feature
+      lines) with the claim card on the right
+- [x] Theme switcher: popover with Dark / Light / System preview
+      cards (replaces the placeholder cycling button)
+- [ ] Remaining views, one reference image at a time

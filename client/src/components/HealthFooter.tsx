@@ -40,11 +40,13 @@ export function HealthFooter() {
       {state.kind === "loading" && <span>Checking server…</span>}
       {state.kind === "ok" && (
         <span className={state.health.db === "connected" ? "foot--ok" : "foot--bad"}>
+          <span className="foot-dot" aria-hidden="true" />
           Server is up · {DB_LABELS[state.health.db]}
         </span>
       )}
       {state.kind === "unreachable" && (
         <span className="foot--bad">
+          <span className="foot-dot" aria-hidden="true" />
           Can't reach the server — start it with <code>npm run dev</code>.
         </span>
       )}

@@ -8,16 +8,16 @@
   &[data-theme="dark"] {
     color-scheme: dark;
   }
-  /* Drafting-table system (DESIGN_PLAN.md): ink-navy ground, panel
-     sheets, four fixed meanings — green added, red dropped, amber
-     changed, cyan interactive. */
-  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Drafting-table system (DESIGN_PLAN.md): near-black neutral ground,
+     panel sheets, four fixed meanings — green added, red dropped, amber
+     changed, violet interactive (magenta = the "feature" side). */
+  --font-ui: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-family: var(--font-ui);
   line-height: 1.5;
-  --bg: light-dark(#f5f6f8, #0d1321);
-  --panel: light-dark(#ffffff, #141b2d);
-  --ink: light-dark(#1c2433, #e6eaf2);
+  --bg: light-dark(#f2f2f5, #0e0e15);
+  --panel: light-dark(#ffffff, #16161f);
+  --ink: light-dark(#1b1b23, #e8e8f0);
   --border: color-mix(in srgb, var(--ink) 16%, transparent);
   --border-soft: color-mix(in srgb, var(--ink) 9%, transparent);
   --hover: color-mix(in srgb, var(--ink) 6%, transparent);
@@ -26,19 +26,31 @@
   --danger: light-dark(#b3261e, #f27e7e);
   --ok: light-dark(#177245, #4cc38a);
   --warn: light-dark(#96650f, #d9a13b);
-  --accent: light-dark(#0e7490, #5bc0d4);
+  --accent: light-dark(#5b4bc8, #b1a5f7);
+  /* Text sitting on a solid accent fill (primary buttons). */
+  --accent-ink: light-dark(#ffffff, #16121f);
+  /* The second branch color: magenta, paired with violet in diagrams. */
+  --accent-2: light-dark(#a83d8b, #cb62ab);
+  /* The dark chrome frame around the whole app, same in both themes. */
+  --frame: #08080c;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--frame);
   color: var(--ink);
 }
 
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - 24px);
+  /* The sheet sits inside a dark chrome frame (body bg), rounded like
+     a drafting board on a desk. */
+  margin: 12px;
+  border-radius: 14px;
+  overflow: clip;
+  background-color: var(--bg);
   /* The worktop: a faint drafting dot-grid under everything; panels
      (top bar, sidebars, cards) lay over it as solid sheets. */
   background-image: radial-gradient(
@@ -307,9 +319,14 @@ select option {
 }
 
 .btn--primary {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
 .btn--danger {
@@ -581,14 +598,22 @@ textarea.json {
 /* --- footer ---------------------------------------------------------------- */
 
 .foot {
-  padding: 0.4rem 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--panel);
+  padding: 0.55rem 1.5rem;
+  border-top: 1px solid var(--border-soft);
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.foot-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 0.7em;
 }
 
 .foot--ok {
@@ -603,35 +628,476 @@ textarea.json {
 
 .gate {
   flex: 1;
+  position: relative;
   display: grid;
-  place-items: center;
-  padding: 2rem 1rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding: 3rem clamp(1.5rem, 6vw, 6.5rem);
 }
 
-.gate-card {
-  width: min(26rem, 100%);
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  padding: 2rem;
+@media (max-width: 56rem) {
+  .gate {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding-top: 4.5rem;
+  }
+}
+
+.gate-theme {
+  position: absolute;
+  top: 1.4rem;
+  right: 1.6rem;
+}
+
+.gate-hero h1 {
+  margin: 0 0 1rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1.1rem;
+  font-size: clamp(2.1rem, 3.4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
-.gate-card h1 {
-  margin: 0;
-  font-size: 1.3rem;
+.gate-gem {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.4rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .gate-lead {
-  margin: 0 0 0.5rem;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 1.15rem;
+}
+
+/* The branch/merge vignette: a mono-typed mini graph, absolutely
+   positioned inside a fixed-height stage so the rails line up. */
+
+.gate-diagram {
+  position: relative;
+  height: 17rem;
+  max-width: 40rem;
+  margin: 2.75rem 0 3rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.diagram-rail {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: 2.1rem;
+  bottom: 1.9rem;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent-2));
+}
+
+.diagram-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.diagram-pill--merge {
+  bottom: 0;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
+.diagram-branch {
+  position: absolute;
+  top: 2.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.diagram-branch--main {
+  right: calc(50% + 2.2rem);
+  color: var(--accent);
+}
+
+.diagram-branch--feature {
+  left: calc(50% + 2.2rem);
+  color: var(--accent-2);
+}
+
+.diagram-branch-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.diagram-node {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.diagram-node--feature {
+  border-color: var(--accent-2);
+}
+
+.diagram-link {
+  position: absolute;
+  height: 2px;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.diagram-link--feature {
+  background: color-mix(in srgb, var(--accent-2) 55%, transparent);
+}
+
+.diagram-chip {
+  position: absolute;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--panel);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--frame) 12%, transparent);
+}
+
+.diagram-chip--left {
+  right: calc(50% + 3.2rem);
+}
+
+.diagram-chip--right {
+  left: calc(50% + 3.2rem);
+}
+
+.diagram-chip .op-changed {
+  color: var(--warn);
+}
+
+.diagram-chip .op-added {
+  color: var(--ok);
+}
+
+.diagram-badge {
+  padding: 0.12rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+  color: var(--ok);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The three one-line feature explanations under the diagram. */
+
+.gate-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.gate-point {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.gate-point-icon {
+  flex-shrink: 0;
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.gate-point-icon--warn {
+  color: var(--warn);
+}
+
+.gate-point p {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.gate-point p span {
+  color: var(--muted);
+}
+
+/* The claim card on the right. */
+
+.gate-card {
+  width: min(30rem, 100%);
+  justify-self: end;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.1rem;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--panel);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--frame) 14%, transparent);
+}
+
+@media (max-width: 56rem) {
+  .gate-card {
+    justify-self: stretch;
+  }
+}
+
+.gate-card-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.gate-card input {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+}
+
+.gate-card input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.gate-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .gate-submit {
-  align-self: flex-start;
-  padding: 0.45rem 1.1rem;
+  width: 100%;
+  padding: 0.8rem 1.1rem;
+  border-radius: 0.6rem;
+  font-size: 1.05rem;
+}
+
+/* --- theme switcher ------------------------------------------------------ */
+
+.theme-switch {
+  position: relative;
+}
+
+.theme-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.theme-switch-btn:hover {
+  background: var(--hover);
+}
+
+.theme-switch-caret {
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.theme-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 50;
+  width: max-content;
+  padding: 1rem 1.15rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--frame) 30%, transparent);
+}
+
+.theme-menu-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.theme-menu-options {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  background: var(--hover);
+}
+
+.theme-option--active {
+  border-color: var(--accent);
+}
+
+.theme-option-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.theme-option-check {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Mini page previews drawn in CSS. Colors are fixed per option — a
+   "dark" thumb must look dark whatever theme is active. */
+
+.theme-thumb {
+  position: relative;
+  width: 7rem;
+  height: 4.2rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.theme-thumb--dark {
+  background: #101018;
+}
+
+.theme-thumb--light {
+  background: #ffffff;
+}
+
+.theme-thumb--system {
+  background: linear-gradient(90deg, #101018 50%, #ffffff 50%);
+}
+
+.theme-thumb-head {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.theme-thumb-gem {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 0.1rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #8b7ae8, #cb62ab);
+}
+
+.theme-thumb-bar {
+  height: 0.28rem;
+  border-radius: 999px;
+}
+
+.theme-thumb-head .theme-thumb-bar {
+  width: 1.6rem;
+}
+
+.theme-thumb-body {
+  position: absolute;
+  top: 1.35rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.theme-thumb-body .theme-thumb-bar {
+  width: 100%;
+}
+
+.theme-thumb--dark .theme-thumb-bar {
+  background: #23232f;
+}
+
+.theme-thumb--light .theme-thumb-bar {
+  background: #e4e4ec;
+  border: 1px solid #d4d4de;
+}
+
+.theme-thumb--system .theme-thumb-head .theme-thumb-bar {
+  background: #23232f;
+}
+
+.theme-thumb--system .theme-thumb-body .theme-thumb-bar:first-child {
+  background: #23232f;
+  width: 45%;
+}
+
+.theme-thumb--system .theme-thumb-body .theme-thumb-bar:last-child {
+  background: #ffffff;
+  border: 1px solid #d4d4de;
+  width: 45%;
+  align-self: flex-end;
+}
+
+.theme-menu-note {
+  margin: 0.8rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 /* --- shared form bits --------------------------------------------------- */
