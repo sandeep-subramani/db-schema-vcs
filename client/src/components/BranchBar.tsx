@@ -14,12 +14,14 @@ export function BranchBar({
   saving,
   commitCount,
   historyOpen,
+  reviewOpen,
   canBranch,
   onSwitch,
   onNewBranch,
   onSave,
   onCommit,
   onToggleHistory,
+  onToggleReview,
 }: {
   branches: Branch[];
   currentId: number;
@@ -29,6 +31,8 @@ export function BranchBar({
   saving: boolean;
   commitCount: number;
   historyOpen: boolean;
+  /** True while the "changes since last commit" diff is on screen. */
+  reviewOpen: boolean;
   /** False until some branch has a commit to split at (decisions.md #16). */
   canBranch: boolean;
   onSwitch: (branchId: number) => void;
@@ -36,6 +40,7 @@ export function BranchBar({
   onSave: () => void;
   onCommit: () => void;
   onToggleHistory: () => void;
+  onToggleReview: () => void;
 }) {
   // Depth for indentation: walk parent pointers (the tree is small).
   const byId = new Map(branches.map((b) => [b.id, b]));
@@ -106,6 +111,19 @@ export function BranchBar({
       </span>
 
       <div className="branchbar-actions">
+        <button
+          type="button"
+          className={reviewOpen ? "btn btn--toggled" : "btn"}
+          onClick={onToggleReview}
+          disabled={commitCount === 0}
+          title={
+            commitCount === 0
+              ? "Make the first commit, then review changes against it"
+              : "Compare the schema on screen with the last commit"
+          }
+        >
+          Review changes
+        </button>
         <button type="button" className="btn" onClick={onSave} disabled={!dirty || saving}>
           Save
         </button>

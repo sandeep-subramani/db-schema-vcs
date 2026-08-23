@@ -441,4 +441,25 @@ describe("working state, branching, commits", () => {
     ).toBe(404);
     expect((await call("GET", "/branches/999999", { user: "dev" })).status).toBe(404);
   });
+
+  it("a commit's snapshot is readable by members only (the diff view's raw material)", async () => {
+    const history = await call("GET", `/branches/${mainId}/commits`, { user: "dev" });
+    const commits = history.body.commits as Array<{ id: number; message: string }>;
+    const oldest = commits[commits.length - 1]!;
+
+    const detail = await call("GET", `/commits/${oldest.id}`, { user: "peer" });
+    expect(detail.status).toBe(200);
+    expect(detail.body.commit).toMatchObject({
+      id: oldest.id,
+      branchId: mainId,
+      message: "first commit",
+      author: "dev",
+    });
+    expect(detail.body.snapshot).toEqual(EXAMPLE_SCHEMA);
+
+    // Non-members and missing/malformed ids all get the same 404.
+    expect((await call("GET", `/commits/${oldest.id}`, { user: "mallory" })).status).toBe(404);
+    expect((await call("GET", "/commits/999999", { user: "dev" })).status).toBe(404);
+    expect((await call("GET", "/commits/3000000000", { user: "dev" })).status).toBe(404);
+  });
 });

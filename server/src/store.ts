@@ -464,6 +464,30 @@ export async function commitWorking(
   }
 }
 
+/** One commit with its stored snapshot — the diff view's raw material. */
+export interface CommitDetail {
+  commit: CommitMeta;
+  snapshot: Schema;
+}
+
+export async function getCommit(
+  pool: pg.Pool,
+  commitId: number,
+  username: string,
+): Promise<CommitDetail | null> {
+  const result = await pool.query(
+    `SELECT c.id, c.branch_id, c.message, c.author, c.created_at, c.snapshot
+     FROM commits c
+     JOIN branches b ON b.id = c.branch_id
+     JOIN repos r ON r.id = b.repo_id
+     WHERE c.id = $1 AND ${IS_MEMBER("$2")}`,
+    [commitId, username],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return { commit: rowToCommit(row), snapshot: row.snapshot };
+}
+
 export async function listCommits(
   pool: pg.Pool,
   branchId: number,

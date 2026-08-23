@@ -825,11 +825,51 @@ textarea.json {
 }
 
 .commit-list li {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.history-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.commit-row {
+  width: 100%;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0.1rem;
-  padding: 0.5rem 0.2rem;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 0.5rem 0.4rem;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.commit-row:hover {
+  background: var(--hover);
+}
+
+.commit-row.selected {
+  background: var(--selected);
+}
+
+.commit-badge {
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  color: var(--muted);
+  margin-left: 0.4rem;
+  vertical-align: middle;
 }
 
 .commit-message {
@@ -840,6 +880,199 @@ textarea.json {
 
 .commit-meta {
   font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* --- diff view --------------------------------------------------------- */
+
+.diff-view {
+  flex: 1;
+  min-width: 0;
+  padding: 1.25rem 2rem 3rem;
+  overflow: auto;
+}
+
+.diff-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.diff-title h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.diff-title p {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.diff-questions {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 0.6rem;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.25rem;
+}
+
+.diff-questions h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.diff-questions-hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.diff-questions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.diff-questions li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.diff-question-text {
+  font-size: 0.9rem;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.diff-card {
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 0.8rem 1rem;
+}
+
+.diff-card--added {
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 6%, transparent);
+}
+
+.diff-card--dropped {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 5%, transparent);
+}
+
+.diff-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.diff-card-name {
+  font-weight: 650;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.diff-card-was {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.diff-card-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.diff-badge {
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.08rem 0.5rem;
+  color: var(--muted);
+}
+
+.diff-badge--added {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+}
+
+.diff-badge--dropped {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+.diff-badge--renamed {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.diff-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.diff-line {
+  font-size: 0.85rem;
+  display: flex;
+  gap: 0.45rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.diff-line code {
+  font-size: 0.82rem;
+}
+
+.diff-line-detail {
+  color: var(--muted);
+}
+
+.diff-mark {
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 0.8rem;
+  text-align: center;
+}
+
+.diff-line--added .diff-mark {
+  color: var(--ok);
+}
+
+.diff-line--dropped .diff-mark {
+  color: var(--danger);
+}
+
+.diff-line--changed .diff-mark,
+.diff-line--renamed .diff-mark {
+  color: var(--accent);
+}
+
+.diff-unchanged {
+  margin-top: 1.25rem;
+  font-size: 0.82rem;
   color: var(--muted);
 }
 

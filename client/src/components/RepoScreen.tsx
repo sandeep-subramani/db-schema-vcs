@@ -11,6 +11,7 @@ import {
 import { session } from "../session.ts";
 import { BranchBar } from "./BranchBar.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { DiffView, diffTargetKey, type DiffTarget } from "./DiffView.tsx";
 import { FirstCommitGate } from "./FirstCommitGate.tsx";
 import { HistoryPanel } from "./HistoryPanel.tsx";
 import { ImportExportDialog } from "./ImportExportDialog.tsx";
@@ -95,6 +96,7 @@ export function RepoScreen({
   const [branchFromId, setBranchFromId] = useState<number | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
 
   const schema = history?.present ?? null;
   const dirty = history !== null && history.present !== savedSchema;
@@ -117,6 +119,7 @@ export function RepoScreen({
     session.setBranchId(id);
     setHistory(null);
     setConflictState(null);
+    setDiffTarget(null);
     try {
       const [state, commitList] = await Promise.all([
         api.getBranch(id),
@@ -425,6 +428,25 @@ export function RepoScreen({
   }
 
   const currentBranch = branches.find((b) => b.id === branchId) ?? null;
+  const parentName =
+    currentBranch?.parentBranchId != null
+      ? (branches.find((b) => b.id === currentBranch.parentBranchId)?.name ?? null)
+      : null;
+  // Oldest commit of a branch with a parent = the copied split-point
+  // commit (decisions.md #16), shown as a branch-point marker.
+  const branchPointId =
+    parentName !== null && commits.length > 0
+      ? commits[commits.length - 1]!.id
+      : null;
+
+  function toggleCommitDiff(commit: CommitMeta) {
+    setDiffTarget((current) =>
+      current?.kind === "commit" && current.commit.id === commit.id
+        ? null
+        : { kind: "commit", commit },
+    );
+  }
+
   const showGate =
     schema !== null &&
     currentBranch !== null &&
@@ -491,6 +513,7 @@ export function RepoScreen({
           saving={saving}
           commitCount={commits.length}
           historyOpen={historyOpen}
+          reviewOpen={diffTarget?.kind === "working"}
           onSwitch={requestSwitch}
           canBranch={branchable.length > 0}
           onNewBranch={() => {
@@ -508,6 +531,11 @@ export function RepoScreen({
             setCommitting(true);
           }}
           onToggleHistory={() => setHistoryOpen((open) => !open)}
+          onToggleReview={() =>
+            setDiffTarget((current) =>
+              current?.kind === "working" ? null : { kind: "working" },
+            )
+          }
         />
       )}
 
@@ -531,35 +559,59 @@ export function RepoScreen({
           />
         ) : (
           <>
-            <TableList
-              schema={schema}
-              selected={selected}
-              onSelect={setSelected}
-              onApply={(next) => applyEdit(next)}
-            />
-            <main className="editor">
-              {selectedTable ? (
-                <TableEditor
+            {diffTarget ? (
+              <DiffView
+                key={diffTargetKey(diffTarget)}
+                target={diffTarget}
+                commits={commits}
+                workingSchema={schema}
+                branchName={currentBranch?.name ?? ""}
+                parentName={parentName}
+                onClose={() => setDiffTarget(null)}
+              />
+            ) : (
+              <>
+                <TableList
                   schema={schema}
-                  table={selectedTable}
-                  onEdit={requestEdit}
-                  onRenameTable={(oldName, newName) => {
-                    applyEdit(renameTable(schema, oldName, newName).schema);
-                    setSelected(newName);
-                  }}
+                  selected={selected}
+                  onSelect={setSelected}
+                  onApply={(next) => applyEdit(next)}
                 />
-              ) : (
-                <div className="empty empty--main">
-                  <h2>Nothing here yet</h2>
-                  <p>
-                    A schema is a set of tables. Add your first one in the
-                    sidebar, or use <strong>Import JSON</strong> to bring one
-                    in.
-                  </p>
-                </div>
-              )}
-            </main>
-            {historyOpen && <HistoryPanel commits={commits} />}
+                <main className="editor">
+                  {selectedTable ? (
+                    <TableEditor
+                      schema={schema}
+                      table={selectedTable}
+                      onEdit={requestEdit}
+                      onRenameTable={(oldName, newName) => {
+                        applyEdit(renameTable(schema, oldName, newName).schema);
+                        setSelected(newName);
+                      }}
+                    />
+                  ) : (
+                    <div className="empty empty--main">
+                      <h2>Nothing here yet</h2>
+                      <p>
+                        A schema is a set of tables. Add your first one in the
+                        sidebar, or use <strong>Import JSON</strong> to bring
+                        one in.
+                      </p>
+                    </div>
+                  )}
+                </main>
+              </>
+            )}
+            {historyOpen && (
+              <HistoryPanel
+                commits={commits}
+                selectedId={
+                  diffTarget?.kind === "commit" ? diffTarget.commit.id : null
+                }
+                branchPointId={branchPointId}
+                parentName={parentName}
+                onSelect={toggleCommitDiff}
+              />
+            )}
           </>
         )}
       </div>

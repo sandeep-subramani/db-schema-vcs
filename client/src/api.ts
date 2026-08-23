@@ -214,4 +214,11 @@ export const api = {
   async listCommits(branchId: number): Promise<CommitMeta[]> {
     return (await request("GET", `/branches/${branchId}/commits`)).commits as CommitMeta[];
   },
+
+  async getCommit(
+    commitId: number,
+  ): Promise<{ commit: CommitMeta; snapshot: Schema }> {
+    const payload = await request("GET", `/commits/${commitId}`);
+    return payload as unknown as { commit: CommitMeta; snapshot: Schema };
+  },
 };

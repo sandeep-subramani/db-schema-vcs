@@ -172,3 +172,34 @@ Entry format:
   drop+add), a rename that also changed type/shape always asks rather
   than auto-matches, and column order is not versioned — reordering
   produces an empty diff.
+
+- **[2026-08-23] Diff view v1** — The diff engine got its screen
+  (decisions.md #19). Two entry doors: click any commit in the history
+  panel to see what it changed against the commit before it, or the
+  new "Review changes" button in the branch bar to see what the schema
+  on screen changed since the last commit — the look-before-you-commit
+  moment. Both render the same way: every affected table is a card.
+  An added table is one whole green card, a dropped table one whole
+  red card (every column, key and foreign key it took with it), a
+  changed table lists just its changes as marked lines ("± total —
+  Now nullable"), a renamed table wears a "was <old name>" badge, and
+  tables nothing happened to shrink to a single "Unchanged: …" line so
+  they never drown the signal. When the engine isn't sure whether
+  something was renamed or dropped-and-replaced, a banner above the
+  cards asks in plain words ("In users: was email renamed to
+  contact_email?") — answering re-draws the diff on the spot, no
+  network involved, because the diff is computed in the browser by the
+  same engine the tests run; the server's only new part is one
+  endpoint that hands over a commit's stored snapshot (members only,
+  like everything). Answers are deliberately throwaway: they shape the
+  view you're looking at and vanish with it. One honest edge: a
+  branch's first commit is the copied split-point (#16), where nothing
+  was authored, so its row wears a "branch point" badge and opens a
+  marker page pointing at the parent instead of pretending the whole
+  inherited schema was "added". The card grid itself is a dumb
+  component fed by a pure view-model module (tested against the real
+  engine diff, not hand-built change lists) — day-3 merge composes two
+  of these side by side without touching it. Verified end to end in a
+  headless browser: question asked and answered, working review with a
+  dropped table, first-commit-vs-empty, and the branch-point marker —
+  zero console errors.

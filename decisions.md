@@ -737,3 +737,74 @@ whatever the listing order).
 any UI affordance implying a reorder is a commit-worthy edit. If a
 future SQL export needs stable column order, snapshots already keep
 it — nothing is lost, it's just not compared.
+
+---
+
+## 19. Diff view v1 — commit-click + working review now, arbitrary picker committed to day 3; client-side diff; table cards; ephemeral rename answers
+
+**The decision:** Five calls shaping the diff UI. (1) *Scope now:*
+click a commit in the history panel to see what it changed against
+its predecessor, plus a "Review changes" view comparing the schema on
+screen with the branch's latest commit — the pre-commit moment. (2)
+*The arbitrary two-version picker (any commit vs any commit, across
+branches) is committed scope for day 3, built alongside merge — not
+skippable:* comparing versions is UX support for the product's whole
+point. (3) *The diff runs in the client:* the engine is already in
+the bundle, so answering a rename question re-runs `diffSchemas`
+instantly with zero round trips; the server only gained one read
+endpoint, `GET /commits/:id` (snapshot by commit id, same membership
+enforcement as every route). (4) *Presentation is a table-cards
+grid* — every table a card; added/dropped cards tinted whole, changed
+cards list their changes as marked lines, renamed cards badge "was
+<old>", untouched tables collapse to one "Unchanged: …" strip. The
+card grid is a dumb component that takes a change list, so the day-3
+merge view composes two side by side for free. (5) *Rename answers
+are ephemeral:* questions render as a banner above the cards, answers
+re-render the diff in place and die with the view; nothing persists.
+A branch's first commit (the copied split point, #16) renders as a
+non-diff marker — "nothing was authored here, see the parent" — plus
+a "branch point" badge on its history row, instead of lying that the
+whole inherited schema was added.
+
+**The alternatives:** For scope: commit-click only (covers less for
+nearly the same cost) and the picker now (rejected after establishing
+there is *no rework tax in either direction* — the picker is a leaf
+entry point handing the same renderer a different pair, so it costs
+the same whenever built; and the merge view never uses it, since
+merge-into-parent (#7) fixes both sides by topology — so it competes
+with merge for day 3 time instead of feeding it). Building it with
+merge also lets its cross-branch case be designed knowing what merge
+already covers ("my branch vs its parent" arrives free with merge).
+For where the diff runs: a server-side diff endpoint — rejected: every
+rename answer becomes a round trip, and it buys nothing since the
+client already ships the engine. For presentation: a grouped
+change-list (fastest, least visual — the diff view is the product,
+per the UX bar) and a side-by-side split view (strong at a glance,
+but wide, and collapsing unchanged tables eats the simplicity). For
+the first-commit row: showing the inherited schema as all-added
+(honest only on main, a lie on branches) or walking into the parent
+branch for the true predecessor (the cross-branch history walk #16
+already deferred).
+
+**The reasoning:** Scope now covers the two questions users actually
+ask — "what did this commit change?" and "what am I about to
+commit?" — and leaves day 3 whole for merge, which the UX bar names
+as the product. The picker's promotion to committed scope is the
+product owner's call: a version-control tool that can't compare
+arbitrary versions is missing its point, so it ships with merge
+rather than riding the maybe-list.
+
+**Accepted tradeoffs:** Cross-branch picker pairs with no ancestral
+relation can present edits nobody made and nonsense rename questions —
+the day-3 build must label or restrict those pairs. Two known rename
+question behaviors were reviewed and accepted as-is: rejecting a
+pairing only rules out that pair (the engine may re-ask against the
+next-best candidate — the user said "a isn't x", not "a is nothing"),
+and confirming a table rename can surface fresh column questions
+inside the newly-paired table (the banner is a queue, not a fixed
+checklist).
+
+**What I deliberately cut:** Persisting rename answers anywhere (a
+read-only view doesn't earn storage; merge will collect its own at
+merge time). Diffing on the gate/empty states. Any caching layer for
+commit snapshots — they're KB-sized reads.

@@ -16,6 +16,7 @@ import {
   createBranch,
   createRepo,
   ensureUser,
+  getCommit,
   getRepo,
   getWorkingState,
   isUniqueViolation,
@@ -279,6 +280,20 @@ export function createApi(pool: pg.Pool): express.Router {
       return;
     }
     res.status(201).json({ commit: result.commit, rev: result.rev, savedAt: result.savedAt });
+  });
+
+  // Commit ids are global (one sequence across branches), so a commit
+  // is addressable without its branch; membership is enforced through
+  // the joins in getCommit.
+  api.get("/commits/:commitId", async (req, res) => {
+    const username = res.locals.username as string;
+    const commitId = readId(req.params.commitId);
+    const detail = commitId ? await getCommit(pool, commitId, username) : null;
+    if (!detail) {
+      res.status(404).json({ error: "No such commit (or you're not a member)" });
+      return;
+    }
+    res.json(detail);
   });
 
   api.get("/branches/:branchId/commits", async (req, res) => {

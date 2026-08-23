@@ -55,10 +55,16 @@ scope change gets a decisions.md entry.
       confirmation (decisions.md #5), incl. the rename-detection path
 - [x] Engine tests: apply(diff(A,B), A) equals B, and friends
       (+ applyDiff itself — needed by day-3 merge, not just tests)
-- [ ] Diff view v1 in the UI
+- [x] Diff view v1 in the UI (decisions.md #19): commit-click diff +
+      "Review changes" (working vs last commit), client-side diff,
+      table-card grid + rename-question banner (ephemeral answers),
+      branch-point marker row, GET /commits/:id endpoint
 
 ## Day 3 — merge
 - [ ] Three-way merge: auto-merge changes that don't overlap
+- [ ] Arbitrary version picker — committed scope, not skippable
+      (decisions.md #19): any commit vs any commit incl. cross-branch,
+      reusing the card grid; label/restrict unrelated pairs
 - [ ] Conflict detection: same column retyped both sides, rename
       collisions, FK added to a table the other branch dropped,
       unique removed while the other branch adds an FK targeting it
