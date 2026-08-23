@@ -23,6 +23,7 @@ import { OverwriteDialog } from "./OverwriteDialog.tsx";
 import { TableEditor, type EditRequest } from "./TableEditor.tsx";
 import { TableList } from "./TableList.tsx";
 import { TextPromptDialog } from "./TextPromptDialog.tsx";
+import { ThemeToggle } from "./ThemeToggle.tsx";
 import { Toast, type ToastData } from "./Toast.tsx";
 import { UnsavedDialog } from "./UnsavedDialog.tsx";
 import { renameTable } from "../schema/edits.ts";
@@ -599,6 +600,7 @@ export function RepoScreen({
           <span className="user-chip" title="Your demo identity">
             {username}
           </span>
+          <ThemeToggle />
         </div>
       </header>
 

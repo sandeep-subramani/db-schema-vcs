@@ -2,6 +2,7 @@ import { useState } from "react";
 import { HealthFooter } from "./components/HealthFooter.tsx";
 import { RepoList } from "./components/RepoList.tsx";
 import { RepoScreen } from "./components/RepoScreen.tsx";
+import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { UsernameGate } from "./components/UsernameGate.tsx";
 import { session } from "./session.ts";
 
@@ -29,6 +30,7 @@ export function App() {
         <header className="topbar">
           <h1>Schema Version Control</h1>
           <div className="topbar-actions">
+            <ThemeToggle />
             <span className="user-chip" title="Your demo identity">
               {username}
             </span>

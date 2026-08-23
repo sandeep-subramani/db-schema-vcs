@@ -1,25 +1,51 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, sans-serif;
+  /* Manual override set by theme.ts; forcing color-scheme flips every
+     light-dark() token below. No attribute = follow the OS. */
+  &[data-theme="light"] {
+    color-scheme: light;
+  }
+  &[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  /* Drafting-table system (DESIGN_PLAN.md): ink-navy ground, panel
+     sheets, four fixed meanings — green added, red dropped, amber
+     changed, cyan interactive. */
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-ui);
   line-height: 1.5;
-  --border: color-mix(in srgb, currentColor 16%, transparent);
-  --border-soft: color-mix(in srgb, currentColor 10%, transparent);
-  --hover: color-mix(in srgb, currentColor 7%, transparent);
-  --selected: color-mix(in srgb, currentColor 11%, transparent);
-  --muted: color-mix(in srgb, currentColor 55%, transparent);
-  --danger: light-dark(#b91c1c, #f87171);
-  --ok: light-dark(#15803d, #4ade80);
-  --accent: light-dark(#1d4ed8, #93c5fd);
+  --bg: light-dark(#f5f6f8, #0d1321);
+  --panel: light-dark(#ffffff, #141b2d);
+  --ink: light-dark(#1c2433, #e6eaf2);
+  --border: color-mix(in srgb, var(--ink) 16%, transparent);
+  --border-soft: color-mix(in srgb, var(--ink) 9%, transparent);
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --selected: color-mix(in srgb, var(--accent) 14%, transparent);
+  --muted: color-mix(in srgb, var(--ink) 62%, transparent);
+  --danger: light-dark(#b3261e, #f27e7e);
+  --ok: light-dark(#177245, #4cc38a);
+  --warn: light-dark(#96650f, #d9a13b);
+  --accent: light-dark(#0e7490, #5bc0d4);
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .app {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* The worktop: a faint drafting dot-grid under everything; panels
+     (top bar, sidebars, cards) lay over it as solid sheets. */
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--ink) 8%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
 }
 
 /* --- top bar --------------------------------------------------------- */
@@ -30,12 +56,15 @@ body {
   gap: 1rem;
   padding: 0.65rem 1.25rem;
   border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .topbar-actions {
@@ -60,6 +89,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  background: var(--panel);
 }
 
 .sidebar-title {
@@ -551,9 +581,13 @@ textarea.json {
 /* --- footer ---------------------------------------------------------------- */
 
 .foot {
-  padding: 0.45rem 1.25rem;
+  padding: 0.4rem 1.25rem;
   border-top: 1px solid var(--border);
-  font-size: 0.78rem;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -728,6 +762,7 @@ textarea.json {
   padding: 0.5rem 1.25rem;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+  background: var(--panel);
 }
 
 .branch-pick {
@@ -863,6 +898,7 @@ textarea.json {
   border-left: 1px solid var(--border);
   padding: 1rem;
   overflow: auto;
+  background: var(--panel);
 }
 
 .commit-list {

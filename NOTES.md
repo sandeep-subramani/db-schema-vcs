@@ -392,3 +392,26 @@ The guard is UI-only and as narrow as possible: bring in any schema
 once a branch has history, committing an empty schema as a deliberate
 change is still allowed. Repo/branch name validation stays as-is by
 decision (#26) — they're display labels, not identifiers.
+
+## Day 5 — theme toggle (light / dark / system)
+
+The app always had both themes: every color in index.css is declared
+with the CSS light-dark() function, which means "use the first value
+in light mode, the second in dark mode" — the browser picked one
+automatically from the OS setting. What was missing was a way to
+override that from inside the app.
+
+The override is one mechanism: a small theme.ts writes a data-theme
+attribute on the <html> element and remembers the choice in
+localStorage (same place the session already lives). Two new CSS
+rules say "when that attribute is 'light', force light; when 'dark',
+force dark" — and because every color routes through light-dark(),
+forcing the scheme flips the entire app at once. No attribute means
+"follow the OS", which stays the default.
+
+The control is deliberately a placeholder: one plain button at the
+top right of both top bars, cycling System → Light → Dark and showing
+the current choice. No styling effort spent — the UI refactor will
+replace it. The username gate screen has no top bar and so no button,
+but a saved choice still applies there because it's set at startup,
+before anything renders.

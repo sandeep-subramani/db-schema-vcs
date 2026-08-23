@@ -15,3 +15,6 @@ coverage/
 .claude/settings.local.json
 .DS_Store
 *.log
+
+# temporary design working files — never committed
+design/
