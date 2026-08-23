@@ -33,6 +33,14 @@
   --accent-2: light-dark(#a83d8b, #cb62ab);
   /* The dark chrome frame around the whole app, same in both themes. */
   --frame: #08080c;
+  /* Identity avatars (top-bar chip, repo rail). Deepened violet →
+     magenta so white initials stay legible in both themes — the plain
+     --accent flips too light in dark for text to sit on. */
+  --avatar-fill: linear-gradient(
+    140deg,
+    light-dark(#5b4bc8, #6c58d0),
+    light-dark(#9c3f88, #97479c)
+  );
 }
 
 body {
@@ -73,10 +81,23 @@ body {
 
 .topbar h1 {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+/* Same mark as the login hero (.gate-gem), shrunk to chrome size. */
+.topbar-gem {
+  flex-shrink: 0;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .topbar-actions {
@@ -650,6 +671,14 @@ textarea.json {
   right: 1.6rem;
 }
 
+/* The showcase column is a poster, not a document: nothing in it is
+   selectable and the pointer never turns into a text caret. */
+.gate-hero {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
 .gate-hero h1 {
   margin: 0 0 1rem;
   display: flex;
@@ -892,11 +921,16 @@ textarea.json {
   border: 1px solid var(--border);
   border-radius: 0.6rem;
   padding: 0.85rem 1rem;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .gate-card input:focus {
   border-color: var(--accent);
   outline: none;
+  /* Soft violet halo instead of the platform focus ring. */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .gate-hint {
@@ -904,6 +938,53 @@ textarea.json {
   color: var(--muted);
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+/* Live preview of the identity being claimed. It mounts the moment
+   the field has content, so the entrance animation plays on mount and
+   there is nothing to animate away — an empty field simply has no row.
+   Chip reuses the top-bar .user-chip treatment. */
+
+.gate-identity {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  animation: gate-identity-hop 280ms cubic-bezier(0.34, 1.35, 0.64, 1) both;
+}
+
+@keyframes gate-identity-hop {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem) scale(0.94);
+  }
+  60% {
+    transform: translateY(-0.1rem) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-identity {
+    animation: none;
+  }
+}
+
+.gate-identity-chip {
+  color: var(--ink);
+  background: var(--hover);
+  border-color: var(--border-soft);
+  padding-block: 0.25rem;
+}
+
+.gate-identity-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .gate-submit {
@@ -1129,11 +1210,30 @@ textarea.json {
 }
 
 .user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--ink);
   border: 1px solid var(--border-soft);
   border-radius: 999px;
-  padding: 0.2rem 0.7rem;
+  padding: 0.2rem 0.8rem;
+}
+
+.user-chip:has(.user-chip-avatar) {
+  padding-left: 0.25rem;
+}
+
+.user-chip-avatar {
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .link-btn {
@@ -1150,9 +1250,10 @@ textarea.json {
 
 .repo-home {
   flex: 1;
-  width: min(46rem, 100%);
+  box-sizing: border-box;
+  width: min(65rem, 100%);
   margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+  padding: 2.75rem 1.5rem 3rem;
 }
 
 .repo-home-head {
@@ -1160,12 +1261,48 @@ textarea.json {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.6rem;
 }
 
 .repo-home-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Tally beside the heading; only rendered once there is one. */
+.repo-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.12rem 0.7rem;
+}
+
+.repo-new-btn {
+  border-radius: 0.6rem;
+  padding: 0.6rem 1.05rem;
+}
+
+/* List on the left, identity rail on the right; the rail drops below
+   the list once there is no room for two columns. */
+.repo-home-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+@media (max-width: 54rem) {
+  .repo-home-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .repo-list {
@@ -1174,36 +1311,203 @@ textarea.json {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .repo-row {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
+  align-items: center;
+  gap: 1rem;
   font: inherit;
   color: inherit;
   text-align: left;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  padding: 0.75rem 1.1rem;
   cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .repo-row:hover {
-  background: var(--hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--frame) 12%, transparent);
+}
+
+.repo-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.repo-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .repo-row-name {
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .repo-row-meta {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.repo-row-go {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.repo-row:hover .repo-row-go {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+/* --- repo home: identity rail --------------------------------------------- */
+
+.repo-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rail-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  padding: 1.1rem;
+  background: var(--panel);
+}
+
+.rail-user {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.rail-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rail-user-text {
+  min-width: 0;
+}
+
+.rail-user-name {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.rail-user-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.rail-rule {
+  margin: 0.95rem 0;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rail-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* --- repo home: empty state ----------------------------------------------- */
+
+.repo-empty {
+  box-sizing: border-box;
+  max-width: 43rem;
+  margin: 8rem auto 4rem;
+  padding: 2.5rem 2.5rem 2.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.9rem;
+  text-align: center;
+}
+
+.repo-empty h2 {
+  margin: 1.7rem 0 0.7rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.repo-empty p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.repo-empty code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+/* A branch about to fork: the commit you don't have yet is the hollow
+   ring, the branch you haven't cut is the grey dot. */
+.repo-empty-graph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.repo-empty-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.repo-empty-dot--pending {
+  background: color-mix(in srgb, var(--ink) 32%, transparent);
+}
+
+.repo-empty-ring {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 2px solid var(--accent-2);
+}
+
+.repo-empty-line {
+  width: 2.6rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--accent), var(--accent-2));
+}
+
+.repo-empty-line--tail {
+  background: linear-gradient(
+    to right,
+    var(--accent-2),
+    color-mix(in srgb, var(--ink) 32%, transparent)
+  );
 }
 
 /* --- repo screen / branch bar ----------------------------------------------- */

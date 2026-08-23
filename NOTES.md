@@ -445,3 +445,79 @@ with three preview cards — Dark, Light, System — checkmark on the
 active one. Picking applies instantly and keeps the panel open so
 you can compare; outside click or Escape closes. theme.ts (the
 actual mechanism) is untouched.
+
+### Login page — three refinements
+
+Focus feedback: the username field now draws a soft violet halo
+(a 4px box-shadow ring in the accent color at 22% opacity) instead of
+the browser's own focus ring, with a 120ms transition so it fades in
+rather than snapping.
+
+Identity preview: a "You'll appear as <avatar> name" row sits between
+the hint and the Continue button, and it animates in with a small
+hop — up, slight overshoot, settle — on a spring-ish easing curve.
+The row is rendered only while the field has non-whitespace content,
+so the animation plays on mount and an empty field simply has no row
+(nothing to animate away, and no reserved gap). The trigger is the
+same value.trim() test the submit button already uses, so the row and
+the enabled button appear and disappear together. The chip reuses the
+existing .user-chip / .user-chip-avatar treatment from the top bar,
+so the same person looks the same before and after signing in. Users
+with prefers-reduced-motion get the row without the hop.
+
+Non-selectable showcase: the left column is a poster, not a document,
+so .gate-hero sets user-select: none and cursor: default. Both
+inherit to every heading, diagram chip and feature line inside it —
+dragging across the artwork selects nothing and the pointer never
+becomes a text caret. The theme switcher lives outside .gate-hero, so
+it stays fully interactive.
+
+### Repo listing — restyle pass
+
+The home screen (the list of your repos) was a narrow 46rem column of
+outlined rows. It's now a wider 65rem body split in two: the repo
+cards on the left, a slim identity rail on the right holding one card
+— your avatar, your name, how many repos you have, and the line
+explaining that repos follow that name. Below the heading sits a
+count pill, so "Your repos" reads with its tally attached. Each repo
+card is a solid panel with the name set in the mono face (repo names
+are identifiers, and the mono face is what the rest of the app uses
+for identifiers), the "yours · created 2h ago" meta under it, and an
+arrow on the right that slides and turns violet on hover.
+
+The empty state is a dashed card centred in the body. Above the
+heading there's a small glyph — a filled violet dot, a line, a hollow
+magenta ring, a line, a grey dot. It's a branch about to fork: the
+commit you don't have yet is the hollow ring, the branch you haven't
+cut is the grey dot. Same vocabulary as the login page diagram.
+
+Two things in the reference image were deliberately not built. The
+branch pills on each card (`main`, `feature`) need each repo's branch
+names, and `GET /repos` returns only id, name, owner, members and
+createdAt — the branches are in the database but nobody asks for
+them. The RECENT ACTIVITY rail needs a feed endpoint that doesn't
+exist at all. Both are server changes plus, for the activity rail, a
+second fetch inside RepoList; the restyle rule for this branch is
+presentation-only, so they were put to the side rather than smuggled
+in. If they're wanted later: branch pills are one grouped query and
+one field on the Repo type; activity is a new endpoint unioning repo
+creations with branch saves.
+
+Two shared bits of chrome changed with it. The top bar's title now
+carries the same gem mark as the login hero, and the username chip
+now holds an avatar circle before the name. The avatar fill is a new
+`--avatar-fill` token rather than plain `--accent`, because `--accent`
+flips light in dark mode and white initials would sit on it illegibly;
+the token is a deepened violet→magenta that keeps white text readable
+in both themes. The same class now backs the login page's "You'll
+appear as" chip, so one person looks the same before and after
+signing in. RepoScreen shares `.user-chip` and inherits the new
+padding and ink color, but its markup wasn't given an avatar or a gem
+— that's for its own pass.
+
+One layout bug was fixed on the way. The sheet has no global
+`box-sizing: border-box`, so `.repo-home`'s `width: min(65rem, 100%)`
+plus its 1.5rem side padding overflowed the frame horizontally once
+the viewport was narrow enough for the 100% branch to win. Both the
+body and the empty card are now `border-box`, and the rail drops below
+the list under 54rem.

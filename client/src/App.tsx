@@ -28,10 +28,16 @@ export function App() {
     screen = (
       <>
         <header className="topbar">
-          <h1>Schema Version Control</h1>
+          <h1>
+            <span className="topbar-gem" aria-hidden="true" />
+            Schema Version Control
+          </h1>
           <div className="topbar-actions">
             <ThemeToggle />
             <span className="user-chip" title="Your demo identity">
+              <span className="user-chip-avatar" aria-hidden="true">
+                {username.slice(0, 1).toUpperCase()}
+              </span>
               {username}
             </span>
             <button

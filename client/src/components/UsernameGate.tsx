@@ -121,6 +121,17 @@ export function UsernameGate({ onClaimed }: { onClaimed: (username: string) => v
           is a demo identity, so anyone typing your name is you. Repos you
           create or join follow this name.
         </p>
+        {value.trim() !== "" && (
+          <p className="gate-identity">
+            You’ll appear as
+            <span className="user-chip gate-identity-chip">
+              <span className="user-chip-avatar" aria-hidden="true">
+                {value.trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="gate-identity-name">{value.trim()}</span>
+            </span>
+          </p>
+        )}
         {error && (
           <p className="field-error" role="alert">
             {error}

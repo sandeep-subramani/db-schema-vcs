@@ -124,7 +124,17 @@ scope change gets a decisions.md entry.
       magenta branch color, dark rounded app frame), Space Grotesk
       webfont, primary buttons as solid fills
 - [x] Login page: two-column hero (branch/merge diagram + feature
-      lines) with the claim card on the right
+      lines) with the claim card on the right; refinement pass added
+      the input focus halo, the "You'll appear as" identity preview
+      that hops in while the field has content, and a non-selectable
+      showcase column
 - [x] Theme switcher: popover with Dark / Light / System preview
       cards (replaces the placeholder cycling button)
+- [x] Repo listing (both states): wider two-column body — repo cards
+      left, identity rail right — mono repo names with a go arrow,
+      count pill beside the heading, top-bar gem + avatar chip, and a
+      dashed empty-state card carrying a small branch-graph glyph.
+      Branch pills and the RECENT ACTIVITY rail in the reference were
+      dropped on purpose: both need data the client doesn't have
+      (see NOTES.md), so this pass stayed presentation-only
 - [ ] Remaining views, one reference image at a time
