@@ -239,47 +239,66 @@ Entry format:
   step; nothing server-side changed yet.
 
 - **[2026-08-23] Merge flow: API + screen, and the version picker** —
-  The engine's merge now has a door and a landing strip. The server
-  grew exactly two things. First, one read: `GET
-  /branches/:id/merge-context` hands back everything a merge needs in
-  a single trip — the stored branch-point snapshot (the "original
-  page"), both branches' latest commits, and both saved working
-  states with their revision numbers. The merge itself still runs in
-  the browser, same reasoning as the diff view (#19): answering a
-  rename question or picking a conflict side re-runs the engine
-  instantly, no server round trips. Second, the existing commit
-  endpoint accepts an optional merge marker ("this commit merges
-  branch X, whose commit Y is what I merged"); inside the same
-  database transaction as the commit it moves branch X's stored base
-  forward to Y's snapshot. Same transaction means history can never
-  say "merged" without the base moving — that base advance is why
-  continuing work on X and merging again re-flags nothing that was
-  already absorbed (the smoke test proves exactly this). A marker
-  that doesn't check out — X not a direct child, Y not on X — rejects
-  the whole commit with a plain 400 and writes nothing. The screen
-  follows decisions.md #20 to the letter: "Merge into main…" lives on
-  the branch being merged; it first checks both sides are truly
-  clean (working state equals last commit, compared with the diff
-  engine so a pure reorder still counts as clean, #18) and funnels
-  you to Commit or to the parent when they aren't. Conflicts render
-  as grouped pick-a-side cards — the reasons in plain words, each
-  side's stake listed with table-qualified lines, one "Keep X's
-  version" pick per group — above two side-by-side card grids reusing
-  the day-2 diff components unchanged. Apply doesn't commit: it saves
-  the merged schema as the parent's working state and moves you
-  there, where a banner offers Review changes (the existing diff),
-  Commit merge… (prefilled message, carries the marker), and Abandon
-  (an ordinary undoable edit that puts the last commit's schema back
-  on screen — saving it stays your explicit call, #15). The marker
-  lives in memory only; a reload loses it, which is #20's accepted
-  corner — nothing corrupts, a later merge may just re-ask questions.
-  The version picker (#19/#21) is the same card grid behind two
-  branch+commit dropdowns: any commit vs any commit. Pairs whose
-  branches don't sit on one parent chain (siblings included) get an
-  explicit "different branches: showing what differs, not what anyone
-  did" banner and no rename questions — those would ask about an edit
-  history nobody authored — so differences there show as plain
-  drop+add. Verified: 173 tests green (new: merge API round trip
-  incl. bad markers and staleness; branch-relatedness walk), plus an
-  end-to-end script driving context → conflict → resolve → land →
-  merge-commit → base advance against a real server and database.
+  The merge math existed after the last entry; this wires it into the
+  product. Words used below: a branch's *working state* is its desk
+  copy — the schema as it currently stands, saved but not yet stamped
+  into history; its *tip* is its newest commit; its *base* is the
+  snapshot stored on the branch at creation, the version both sides
+  split from; a branch is *clean* when its desk copy equals its tip.
+  The server grew exactly two things. First, one read:
+  `GET /branches/:id/merge-context` returns in a single request
+  everything a merge needs — the base, both branches' tips, and both
+  desk copies (with the revision numbers a later save must quote).
+  The merge itself runs in the browser, like the diff (#19), so
+  answering a rename question or picking a conflict side updates the
+  screen instantly. Second, the commit endpoint accepts an optional
+  *merge marker*: two ids saying "this commit finishes a merge — this
+  branch was merged in, and this commit of it is what was merged".
+  Why it exists: to the server, the commit that finishes a merge
+  looks like any ordinary commit, and the marker is how the client
+  asks for the merge bookkeeping — inside the same database
+  transaction as the commit, the merged branch's stored base is moved
+  forward to the merged commit's snapshot. Why the base must move:
+  after feature merges into main, feature's changes live in main; if
+  feature's base stayed at the old branch point, the next merge would
+  measure from there and re-report — maybe re-conflict — work already
+  merged once. Moving it means the next merge sees only new work (a
+  test merges and immediately re-merges: nothing found). One
+  transaction means history can never say "merged" while the base
+  stayed behind. A marker whose ids don't check out (branch not a
+  direct child; commit not on it) rejects the whole commit with a
+  plain 400 and writes nothing. The screen follows #20: "Merge into
+  main…" sits on the branch being merged. It first requires both
+  branches clean — checked with the diff engine, so a pure column
+  reorder still counts as clean (#18) — and shows a full-screen
+  pointer to Commit (or to the parent branch) when they aren't.
+  Then: rename questions labeled with the branch they're about; each
+  conflict as a card — the clash named in a sentence, both sides'
+  changes listed with table-qualified names, one keep-this-side
+  button per group — and two side-by-side card grids (the day-2 diff
+  components, reused unchanged) showing what each branch changed
+  since the split. Apply merge does not commit: it saves the merged
+  schema as the parent's desk copy and moves you there, where a
+  banner offers Review changes (the existing diff), Commit merge…
+  (message prefilled; the commit carries the marker — as does any
+  commit made while the banner is up, even after hand edits, which
+  are the intended escape hatch), and Abandon (puts the last
+  committed schema back on screen as an ordinary undoable edit;
+  saving stays your explicit act, #15). The pending merge is browser
+  memory only: it survives switching branches and back; a reload
+  loses it — #20's accepted corner, nothing corrupts, a later merge
+  may just re-ask rename questions. The Compare screen (#19/#21) is
+  the same card grid behind two branch+commit pickers: any commit vs
+  any commit. When the two sit on one line of history (same branch,
+  or one branch an ancestor of the other), every diff line is an
+  edit someone actually made, and rename questions work as usual.
+  When they don't — sibling branches, say — the versions were built
+  independently: the differences are real but no one performed them
+  as edits, so a banner says so, and rename questions are off
+  (they'd ask about an action nobody took); renames there show as
+  plain dropped + added. Relatedness is a cheap walk up the stored
+  parent pointers. Verified: 173 tests green (new: the merge API
+  round trip including rejected markers and stale saves; the
+  branch-relatedness walk), plus a scripted end-to-end run against a
+  real server and database: conflict → resolve → land on the parent →
+  merge commit → base moved → re-merge finds nothing.

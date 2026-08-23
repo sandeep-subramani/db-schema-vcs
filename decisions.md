@@ -892,3 +892,65 @@ relatedness check is a cheap walk over stored parent pointers.
 
 **What I deliberately cut:** Nothing beyond the suppression; the
 banner copy is a day-4 polish candidate.
+
+---
+
+## 22. Merge runs in the browser; the server's merge API is one read plus a commit marker
+
+**The decision:** The three-way merge engine runs in the client,
+exactly like the diff (#19). The server contributes two things only.
+(1) One read, `GET /branches/:id/merge-context`, returning everything
+a merge needs in a single request: the stored base, both branches'
+latest commits, and both working states with their revision numbers.
+(2) The existing commit endpoint accepts an optional *merge marker* —
+two ids: the branch that was merged in, and the commit of it that was
+merged — and, inside the same transaction as the commit, advances
+that branch's stored base to that commit's snapshot (#20). Semantics
+riding on this shape: a marker that doesn't check out (the named
+branch isn't a direct child of the branch being committed to, or the
+named commit isn't on it) rejects the whole commit — 400, nothing
+written — instead of committing without the bookkeeping; a marker
+naming an *older* tip of the merged branch is accepted, and the base
+advances to exactly that commit, because that is what was actually
+merged (#20's "the tip that was merged"); and the git-strict
+preconditions (#20) are enforced by the UI funnel, not re-checked by
+the server at commit time — the server cannot tell a landed merge
+from any other working state, by design, since #20 makes the landed
+state editable before commit.
+
+**The alternatives:** (a) A server-side merge endpoint (send answers
+and picks, get back conflicts or the merged schema) — rejected: every
+rename answer and conflict pick becomes a round trip, the exact
+interactivity cost #19 refused for the diff; the engine ships in the
+client bundle regardless; and the server couldn't verify the final
+result anyway, because the user may edit the landed state before
+committing. (b) No context endpoint — compose the existing reads
+(branch, parent, two commit fetches, two working states) — rejected:
+five round trips for one screen, read at slightly different moments;
+one read hands over one consistent bundle. (c) A dedicated
+merge-commit endpoint instead of a marker on the existing commit
+route — rejected: a merge commit *is* an ordinary commit of the
+working state (#20), and a second route means duplicating the
+save-and-stamp transaction, one more code path for the same write.
+(d) When the marker doesn't check out, committing anyway and skipping
+the base advance — rejected: that mints a commit whose message says
+"merged" while the bookkeeping silently didn't happen; refusing whole
+keeps "merged" and "base moved" inseparable.
+
+**The reasoning:** #19 already decided where this kind of interactive
+computation lives and why; the merge is the same shape with the same
+question-answer loop, so it gets the same answer. The marker rides
+the existing commit transaction because #20 demands the commit and
+the base advance be one atomic act — bookkeeping anywhere else would
+reopen the gap #20 closed. Accepted tradeoffs: the server validates
+the committed snapshot like any other but trusts the client that it
+is a *merge* result (unverifiable by design once post-landing edits
+are allowed), and the cleanliness preconditions are client-enforced
+only.
+
+**What I deliberately cut:** Server-side re-checking of the
+git-strict preconditions at merge-commit time. Once #20 lets the
+user edit the landed state before committing, the server cannot tell
+a merge commit's snapshot from any other working state, so a check
+there would only pretend to verify; the UI funnel owns the
+preconditions, as stated above.
