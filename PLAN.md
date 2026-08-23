@@ -137,4 +137,12 @@ scope change gets a decisions.md entry.
       Branch pills and the RECENT ACTIVITY rail in the reference were
       dropped on purpose: both need data the client doesn't have
       (see NOTES.md), so this pass stayed presentation-only
+- [x] First-commit gate: door cards with glyph tiles and a centred
+      wider grid, mono branch name in the heading, and a new
+      line-ring-pill drawing under the doors naming the commit that
+      doesn't exist yet. Shared chrome caught up too — gem + avatar in
+      the top bar, quiet Undo, group rules, wrapping bar, branch chip
+      with a live dot, History count badge. The reference's
+      full-strength `Commit…` was not copied: it's disabled here
+      (decisions.md #25)
 - [ ] Remaining views, one reference image at a time

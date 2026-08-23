@@ -556,7 +556,10 @@ export function RepoScreen({
         >
           ← Repos
         </button>
-        <h1>{repo?.name ?? "…"}</h1>
+        <h1>
+          <span className="topbar-gem" aria-hidden="true" />
+          {repo?.name ?? "…"}
+        </h1>
         {repo && (
           <button type="button" className="btn" onClick={() => setMembersOpen(true)}>
             Share{repo.members.length > 0 ? ` (${repo.members.length + 1})` : ""}
@@ -565,13 +568,14 @@ export function RepoScreen({
         <div className="topbar-actions">
           <button
             type="button"
-            className="btn"
+            className="btn btn--quiet"
             onClick={undo}
             disabled={!history || history.past.length === 0}
             title="Undo last edit (Ctrl/Cmd+Z)"
           >
             Undo
           </button>
+          <span className="topbar-rule" aria-hidden="true" />
           <button
             type="button"
             className="btn"
@@ -597,10 +601,14 @@ export function RepoScreen({
           >
             Export JSON
           </button>
+          <span className="topbar-rule" aria-hidden="true" />
+          <ThemeToggle />
           <span className="user-chip" title="Your demo identity">
+            <span className="user-chip-avatar" aria-hidden="true">
+              {username.slice(0, 1).toUpperCase()}
+            </span>
             {username}
           </span>
-          <ThemeToggle />
         </div>
       </header>
 

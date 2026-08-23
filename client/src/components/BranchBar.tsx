@@ -97,18 +97,21 @@ export function BranchBar({
   return (
     <div className="branchbar">
       <label className="branch-pick">
-        Branch
-        <select
-          value={currentId}
-          aria-label="Switch branch"
-          onChange={(e) => onSwitch(Number(e.target.value))}
-        >
-          {ordered.map((branch) => (
-            <option key={branch.id} value={branch.id}>
-              {`${"  ".repeat(depth(branch))}${branch.name}`}
-            </option>
-          ))}
-        </select>
+        <span className="branch-label">Branch</span>
+        <span className="branch-pill">
+          <span className="branch-pill-dot" aria-hidden="true" />
+            <select
+            value={currentId}
+            aria-label="Switch branch"
+            onChange={(e) => onSwitch(Number(e.target.value))}
+          >
+            {ordered.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {`${"  ".repeat(depth(branch))}${branch.name}`}
+              </option>
+            ))}
+          </select>
+        </span>
       </label>
       <button
         type="button"
@@ -187,7 +190,8 @@ export function BranchBar({
           className={historyOpen ? "btn btn--toggled" : "btn"}
           onClick={onToggleHistory}
         >
-          History ({commitCount})
+          History
+          <span className="count-badge">{commitCount}</span>
         </button>
       </div>
     </div>

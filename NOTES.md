@@ -521,3 +521,51 @@ plus its 1.5rem side padding overflowed the frame horizontally once
 the viewport was narrow enough for the 100% branch to win. Both the
 body and the empty card are now `border-box`, and the rail drops below
 the list under 54rem.
+
+## First-commit gate restyle (UI redesign, pass 3)
+
+The page a brand-new repo lands on. Same three doors as before, same
+handlers — what changed is how they read.
+
+The doors are now cards on the panel colour with a glyph tile above
+the title: `+` for the editor, `{ }` for JSON (magenta, the second
+branch colour), `>_` for SQL. Text is centred, the grid is wider
+(66rem, three across on a desktop, two then one as it narrows), and
+hover/keyboard-focus paint the border violet with a faint accent
+wash. The heading now sets the branch name in mono violet inside its
+quotes, because a branch name is an identifier and the rest of the app
+already sets identifiers in mono.
+
+Under the doors there's a new bit of drawing: a short line down into a
+hollow violet ring, with a mono pill reading YOUR FIRST COMMIT ON
+<branch>. It's the same vocabulary as the login diagram and the repo
+list's empty state — a hollow ring is the commit you don't have yet.
+It says what the doors are *for*, which the old page left implicit.
+
+The block centres itself on the worktop with auto margins on the first
+and last child rather than `justify-content: center`, so a short window
+can still scroll up to the heading instead of clipping it.
+
+Two pieces of shared chrome caught up with the repo list (NOTES.md
+above left them for "its own pass"): the top bar's repo name now
+carries the gem mark, and the username chip has its avatar circle.
+Undo became a quiet button (borderless until hovered) since it's
+dormant most of the time, and hairline rules group the bar into
+history | schema I/O | you. The bar also wraps now, so the theme
+picker and the chip stay on screen on a narrow window instead of being
+clipped by the frame.
+
+In the branch bar, "Branch" became a small mono label and the select
+became a chip: a violet live-branch dot, the name in mono, and a
+CSS-drawn caret (the select itself is chromeless, `appearance: none`;
+the caret is a `::after` on the chip with `pointer-events: none` so
+clicking it still opens the menu). `History (0)` became `History` plus
+a round count badge, which is why `.btn` is now `inline-flex` — that
+also stops the POSTGRES pill inside Import SQL from riding low.
+
+Two things in the reference image were not copied. The `Commit…`
+button is shown at full strength there, but on an empty gate it is
+disabled (decisions.md #25) and dimming it is how you can tell; a
+solid violet button that does nothing would undo that decision. And
+the username chip keeps its faint pill border so it matches the repo
+list page, where the same class was signed off last pass.

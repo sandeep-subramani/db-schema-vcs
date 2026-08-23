@@ -73,7 +73,8 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   padding: 0.65rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
@@ -103,7 +104,16 @@ body {
 .topbar-actions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+/* Hairline grouping the chrome: history controls | schema I/O | you. */
+.topbar-rule {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.3rem;
+  background: var(--border);
 }
 
 /* --- layout ---------------------------------------------------------- */
@@ -323,15 +333,46 @@ select option {
 .btn {
   font: inherit;
   color: inherit;
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   padding: 0.35rem 0.75rem;
   cursor: pointer;
 }
 
+/* A button that only shows itself on hover — for chrome actions that
+   are dormant most of the time (Undo). */
+.btn--quiet {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+/* Count riding along inside a button (History). */
+.count-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  margin-left: 0.45rem;
+  padding: 0 0.3rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .btn:hover:not(:disabled) {
   background: var(--hover);
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.btn--quiet:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--ink);
 }
 
 .btn:disabled {
@@ -1243,7 +1284,13 @@ textarea.json {
   padding: 0;
   color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 0.2em;
   cursor: pointer;
+}
+
+.link-btn:hover {
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink));
+  text-decoration-thickness: 2px;
 }
 
 /* --- repo home ------------------------------------------------------------ */
@@ -1529,7 +1576,7 @@ textarea.json {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.45rem 1.25rem;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   background: var(--panel);
@@ -1538,15 +1585,63 @@ textarea.json {
 .branch-pick {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8rem;
-  font-weight: 650;
+  gap: 0.55rem;
+}
+
+.branch-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
+/* Where you are, as a chip: the live-branch dot plus its name. */
+.branch-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--hover);
+}
+
+.branch-pill-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* Caret drawn on the chip, so the select itself can go chromeless. */
+.branch-pill::after {
+  content: "";
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  width: 0.28rem;
+  height: 0.28rem;
+  margin-top: -0.25rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
 .branch-pick select {
+  appearance: none;
+  border: none;
+  border-radius: 0.3rem;
+  background: transparent;
+  padding: 0 1.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
   font-weight: 600;
-  color: inherit;
+  color: var(--ink);
+  cursor: pointer;
 }
 
 .save-status {
@@ -1581,46 +1676,75 @@ textarea.json {
 
 /* --- first-commit gate --------------------------------------------------------- */
 
+/* Centred on the worktop, but with auto margins rather than
+   justify-content so a short window can still scroll to the top. */
 .first-commit {
   flex: 1;
-  max-width: 44rem;
-  margin: 3.5rem auto;
-  padding: 0 1.5rem;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1.5rem 3.25rem;
   text-align: center;
 }
 
 .first-commit h2 {
-  margin: 0 0 0.5rem;
+  margin: auto 0 0.7rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.first-commit-quote {
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+}
+
+/* The branch name reads as the identifier it is. */
+.first-commit-branch {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--accent);
 }
 
 .first-commit-lead {
+  max-width: 48rem;
+  margin: 0 0 2.6rem;
   color: var(--muted);
-  margin: 0 0 2rem;
+  line-height: 1.6;
 }
 
 .door-grid {
+  width: 100%;
+  max-width: 66rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-  text-align: left;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.35rem;
 }
 
 .door {
   font: inherit;
   color: inherit;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 0.7rem;
-  padding: 1rem 1.1rem;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  padding: 2rem 1.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
-.door:hover:not(:disabled) {
-  background: var(--hover);
+.door:hover:not(:disabled),
+.door:focus-visible {
+  outline: none;
   border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
 .door:disabled {
@@ -1628,12 +1752,34 @@ textarea.json {
   cursor: default;
 }
 
+/* One glyph per door: the editor's +, JSON braces, a SQL prompt. */
+.door-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.door-icon--json {
+  color: var(--accent-2);
+}
+
 .door-title {
-  font-weight: 650;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .door-desc {
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  line-height: 1.65;
   color: var(--muted);
 }
 
@@ -1654,9 +1800,50 @@ textarea.json {
   vertical-align: middle;
 }
 
+/* The commit this branch doesn't have yet: the branch line runs down
+   out of the doors into a hollow ring, labelled with what committing
+   would create. */
+.first-commit-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2.4rem;
+}
+
+.fc-node-line {
+  width: 1px;
+  height: 1.7rem;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--accent) 75%, transparent)
+  );
+}
+
+.fc-node-ring {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.2rem;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+}
+
+.fc-node-label {
+  margin-top: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.45rem;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .first-commit-example {
-  margin-top: 2rem;
-  font-size: 0.88rem;
+  margin: 2.1rem 0 auto;
+  font-size: 0.9rem;
   color: var(--muted);
 }
 
