@@ -355,6 +355,10 @@ body {
   align-items: center;
   gap: 0.7rem;
   min-width: 0;
+  /* Narrow editor column: the name field can only shrink so far (see
+     its min-width below), so let the count chip drop under it rather
+     than have the two fight over the same strip. */
+  flex-wrap: wrap;
 }
 
 /* Tally beside the table name, same chip as the sidebar heading. */
@@ -410,6 +414,11 @@ body {
   /* Shrink-wrap the name so the count chip sits beside it; browsers
      without field-sizing just keep the default input width. */
   field-sizing: content;
+  /* border-box or the two limits below lie: min-width would add the
+     padding on top (a 3rem floor rendering at ~3.9rem) and max-width
+     could never hold it, since min-width always wins. The field then
+     painted over the count chip in a narrow editor column. */
+  box-sizing: border-box;
   min-width: 3rem;
   max-width: 100%;
 }

@@ -603,17 +603,38 @@ export function RepoScreen({
   // --- render -------------------------------------------------------------------
 
   if (loadError) {
+    // Keeps the app's chrome: this is a whole screen, and every screen
+    // carries the theme picker and the account chip. The repo name is
+    // static text rather than the usual home button — there is no repo
+    // to go home to — and neither exit needs the unsaved-changes guard,
+    // since nothing was ever loaded to be dirty.
     return (
-      <div className="repo-error">
-        <div className="empty empty--main">
-          <span className="empty-icon empty-icon--danger" aria-hidden="true">
-            !
-          </span>
-          <h2>Can't open this repo</h2>
-          <p>{loadError}</p>
-          <button type="button" className="btn btn--primary" onClick={onLeaveRepo}>
-            Back to your repos
-          </button>
+      <div className="repo-screen">
+        <header className="topbar">
+          <h1>
+            <span className="topbar-gem" aria-hidden="true" />
+            Schema Version Control
+          </h1>
+          <div className="topbar-actions">
+            <ThemeToggle />
+            <UserMenu
+              username={username}
+              onGoToRepos={onLeaveRepo}
+              onSwitchUser={onSwitchUser}
+            />
+          </div>
+        </header>
+        <div className="repo-error">
+          <div className="empty empty--main">
+            <span className="empty-icon empty-icon--danger" aria-hidden="true">
+              !
+            </span>
+            <h2>Can't open this repo</h2>
+            <p>{loadError}</p>
+            <button type="button" className="btn btn--primary" onClick={onLeaveRepo}>
+              Back to your repos
+            </button>
+          </div>
         </div>
       </div>
     );
