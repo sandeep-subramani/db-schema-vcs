@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   diffSchemas,
   mergeSchemas,
@@ -7,17 +7,10 @@ import {
   type MergeSide,
   type RenameDecision,
   type Schema,
-  type SchemaChange,
 } from "engine";
 import { api, ApiError, type MergeContext } from "../api.ts";
-import {
-  buildDiffCards,
-  describePropertyChange,
-  formatColumn,
-  formatForeignKey,
-  formatPrimaryKey,
-} from "../diff/view-model.ts";
-import { DiffCardGrid } from "./DiffCardGrid.tsx";
+import { buildDiffCards, buildMergeTimeline } from "../diff/view-model.ts";
+import { DiffCard } from "./DiffCardGrid.tsx";
 import {
   describeRenameQuestion,
   RenameQuestionsBanner,
@@ -55,6 +48,7 @@ export function MergeView({
   onRequestCommit,
   onSwitchToParent,
   onLanded,
+  backLabel = "Editor",
 }: {
   sourceBranchId: number;
   onClose: () => void;
@@ -63,6 +57,8 @@ export function MergeView({
   /** The parent's working state isn't clean — go deal with it there. */
   onSwitchToParent: (parentBranchId: number) => void;
   onLanded: (landing: MergeLanding) => void;
+  /** Where onClose lands — the repo home opens this view too. */
+  backLabel?: string | null;
 }) {
   const [load, setLoad] = useState<LoadState>({ phase: "loading" });
   const [reloadTick, setReloadTick] = useState(0);
@@ -144,7 +140,8 @@ export function MergeView({
     });
     const theirsUntouched = new Set(theirs.unchanged);
     const untouchedBoth = ours.unchanged.filter((name) => theirsUntouched.has(name));
-    return { ours, theirs, untouchedBoth };
+    const timeline = buildMergeTimeline(ours.cards, theirs.cards, result.conflicts);
+    return { ours, theirs, untouchedBoth, timeline };
   }, [context, result]);
 
   function reload() {
@@ -291,6 +288,9 @@ export function MergeView({
         {result.conflicts.length > 0 && (
           <section className="merge-conflicts">
             <h3>
+              <span className="merge-conflicts-mark" aria-hidden="true">
+                !
+              </span>
               {result.conflicts.length} conflict
               {result.conflicts.length === 1 ? "" : "s"} — pick a side for each
             </h3>
@@ -301,7 +301,7 @@ export function MergeView({
               branch point.
             </p>
             {result.conflicts.map((conflict) => (
-              <ConflictCard
+              <ConflictRow
                 key={conflict.id}
                 conflict={conflict}
                 pick={picks[conflict.id]}
@@ -314,27 +314,90 @@ export function MergeView({
             ))}
           </section>
         )}
-        <div className="merge-grids">
-          <section className="merge-grid">
-            <h3>Changes on “{parentName}” since the branch point</h3>
-            {grids.ours.cards.length === 0 ? (
-              <p className="diff-card-note">
-                No changes — “{parentName}” hasn't moved since “{sourceName}”
-                split off.
-              </p>
-            ) : (
-              <DiffCardGrid cards={grids.ours.cards} unchanged={[]} />
-            )}
-          </section>
-          <section className="merge-grid">
-            <h3>Changes on “{sourceName}” since the branch point</h3>
-            {grids.theirs.cards.length === 0 ? (
-              <p className="diff-card-note">No changes on “{sourceName}”.</p>
-            ) : (
-              <DiffCardGrid cards={grids.theirs.cards} unchanged={[]} />
-            )}
-          </section>
-        </div>
+        {/* One spine from the branch point down, both sides hung off
+            it. A table both branches touched shares a rung, so the
+            disagreement reads across one line, not down two columns. */}
+        <section className="merge-tl">
+          <span className="merge-tl-origin">Branch point</span>
+          <div className="merge-tl-heads">
+            <h3 className="merge-tl-head merge-tl-head--ours">
+              <span className="merge-tl-head-dot" aria-hidden="true" />
+              Changes on “{parentName}” since the branch point
+            </h3>
+            <h3 className="merge-tl-head merge-tl-head--theirs">
+              <span className="merge-tl-head-dot" aria-hidden="true" />
+              Changes on “{sourceName}” since the branch point
+            </h3>
+          </div>
+          <ol className="merge-tl-rows">
+            {grids.timeline.map((row, i) => {
+              // A rung is only alarming while its conflict is open: once
+              // a side is picked it keeps the badge but drops the red,
+              // the same way the conflict row above it does.
+              const open = row.conflictIds.some((id) => !picks[id]);
+              const conflicted = row.conflictIds.length > 0;
+              const badge = conflicted ? (
+                <span className="diff-badge diff-badge--conflict">conflict</span>
+              ) : undefined;
+              return (
+                <li
+                  key={row.name}
+                  className={[
+                    "merge-tl-row",
+                    open ? "merge-tl-row--conflict" : "",
+                    conflicted && !open ? "merge-tl-row--settled" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  // How far down the spine this rung sits, 0–1, so its
+                  // node can take the spine's colour where they meet.
+                  style={
+                    {
+                      "--tl-t":
+                        grids.timeline.length < 2
+                          ? 0
+                          : i / (grids.timeline.length - 1),
+                    } as CSSProperties
+                  }
+                >
+                  <div className="merge-tl-cell merge-tl-cell--ours">
+                    {row.ours && (
+                      <>
+                        <span className="merge-tl-cell-side">{parentName}</span>
+                        <DiffCard card={row.ours} badge={badge} />
+                      </>
+                    )}
+                  </div>
+                  <span className="merge-tl-node" aria-hidden="true" />
+                  <div className="merge-tl-cell merge-tl-cell--theirs">
+                    {row.theirs && (
+                      <>
+                        <span className="merge-tl-cell-side">{sourceName}</span>
+                        <DiffCard card={row.theirs} badge={badge} />
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          {grids.timeline.length === 0 && (
+            <p className="diff-card-note merge-tl-empty">
+              Neither side has moved since the branch point.
+            </p>
+          )}
+          {grids.ours.cards.length === 0 && grids.timeline.length > 0 && (
+            <p className="diff-card-note merge-tl-quiet merge-tl-quiet--ours">
+              No changes — “{parentName}” hasn't moved since “{sourceName}”
+              split off.
+            </p>
+          )}
+          {grids.theirs.cards.length === 0 && grids.timeline.length > 0 && (
+            <p className="diff-card-note merge-tl-quiet merge-tl-quiet--theirs">
+              No changes on “{sourceName}”.
+            </p>
+          )}
+        </section>
         {grids.untouchedBoth.length > 0 && (
           <p className="diff-unchanged">
             Untouched by both sides: {grids.untouchedBoth.join(", ")}
@@ -350,7 +413,15 @@ export function MergeView({
         )}
         <div className="merge-apply">
           <div className="merge-apply-text">
-            <span className="merge-apply-status">{status}</span>
+            <span
+              className={
+                result.merged === null
+                  ? "merge-apply-status merge-apply-status--blocked"
+                  : "merge-apply-status"
+              }
+            >
+              {status}
+            </span>
             <span className="merge-apply-hint">
               Applying saves the merged schema as “{parentName}”'s working
               state — nothing is committed until you commit it there.
@@ -372,14 +443,28 @@ export function MergeView({
   return (
     <main className="diff-view">
       <div className="diff-head">
-        <button type="button" className="btn" onClick={onClose}>
-          ← Editor
-        </button>
+        {/* Only when closing lands somewhere the top bar can't take
+            you: the editor or the entry doors. Getting to the repo
+            home is the top bar's job alone. */}
+        {backLabel !== null && (
+          <button type="button" className="btn" onClick={onClose}>
+            ← {backLabel}
+          </button>
+        )}
         <div className="diff-title">
           <h2>
-            {context
-              ? `Merge “${sourceName}” into “${parentName}”`
-              : "Merge into parent"}
+            {context ? (
+              <>
+                Merge “
+                <span className="diff-title-branch diff-title-branch--source">
+                  {sourceName}
+                </span>
+                ” into “
+                <span className="diff-title-branch">{parentName}</span>”
+              </>
+            ) : (
+              "Merge into parent"
+            )}
           </h2>
           {context && (
             <p>
@@ -394,7 +479,10 @@ export function MergeView({
   );
 }
 
-function ConflictCard({
+/** One conflict, one row: what disagrees, then the two ways out. The
+ *  per-side change lists live on the timeline below instead, on the
+ *  cards of the tables the conflict touches. */
+function ConflictRow({
   conflict,
   pick,
   oursName,
@@ -413,19 +501,21 @@ function ConflictCard({
     >
       <ul className="merge-reasons">
         {conflict.reasons.map((reason) => (
-          <li key={reason}>{reason}</li>
+          <li key={reason}>
+            <span>{quotedInMono(reason)}</span>
+          </li>
         ))}
       </ul>
-      <div className="merge-sides">
-        <ConflictSideBox
+      <div className="merge-picks">
+        <PickButton
+          tone="ours"
           label={oursName}
-          changes={conflict.ours}
           state={pick === undefined ? "open" : pick === "ours" ? "kept" : "dropped"}
           onPick={() => onPick("ours")}
         />
-        <ConflictSideBox
+        <PickButton
+          tone="theirs"
           label={theirsName}
-          changes={conflict.theirs}
           state={pick === undefined ? "open" : pick === "theirs" ? "kept" : "dropped"}
           onPick={() => onPick("theirs")}
         />
@@ -434,162 +524,36 @@ function ConflictCard({
   );
 }
 
-function ConflictSideBox({
-  label,
-  changes,
-  state,
-  onPick,
-}: {
-  label: string;
-  changes: SchemaChange[];
-  state: "open" | "kept" | "dropped";
-  onPick: () => void;
-}) {
-  const modifier =
-    state === "kept"
-      ? " merge-side--kept"
-      : state === "dropped"
-        ? " merge-side--dropped"
-        : "";
-  return (
-    <div className={`merge-side${modifier}`}>
-      <header className="merge-side-head">
-        <span className="merge-side-name">On “{label}”</span>
-        {state === "kept" && (
-          <span className="diff-badge diff-badge--added">kept</span>
-        )}
-        {state === "dropped" && (
-          <span className="diff-badge diff-badge--dropped">dropped</span>
-        )}
-      </header>
-      <ul className="diff-lines">
-        {changes.map((change, i) => (
-          <ConflictLine key={i} change={change} />
-        ))}
-      </ul>
-      <button
-        type="button"
-        className={state === "kept" ? "btn btn--toggled merge-side-pick" : "btn merge-side-pick"}
-        onClick={onPick}
-      >
-        Keep “{label}”'s version
-      </button>
-    </div>
+/** Every quoted run in an engine sentence is an identifier — render
+ *  those in mono so the thing in dispute is findable at a glance. The
+ *  sentence itself is the engine's, unchanged. */
+function quotedInMono(text: string) {
+  return text.split(/"([^"]*)"/).map((part, i) =>
+    i % 2 === 1 ? <code key={i}>&quot;{part}&quot;</code> : <span key={i}>{part}</span>,
   );
 }
 
-/** Conflict sides list changes from anywhere in the schema, so every
- *  line is table-qualified — unlike card lines, whose card names the
- *  table. Table-level kinds render as lines here too. */
-function ConflictLine({ change }: { change: SchemaChange }) {
-  switch (change.kind) {
-    case "table-added":
-      return (
-        <li className="diff-line diff-line--added">
-          <span className="diff-mark" aria-hidden="true">+</span>
-          <span className="diff-line-body">
-            Table <code>{change.table.name}</code> added (
-            {change.table.columns.length} column
-            {change.table.columns.length === 1 ? "" : "s"})
-          </span>
-        </li>
-      );
-    case "table-dropped":
-      return (
-        <li className="diff-line diff-line--dropped">
-          <span className="diff-mark" aria-hidden="true">−</span>
-          <span className="diff-line-body">
-            Table <code>{change.name}</code> dropped
-          </span>
-        </li>
-      );
-    case "table-renamed":
-      return (
-        <li className="diff-line diff-line--renamed">
-          <span className="diff-mark" aria-hidden="true">→</span>
-          <span className="diff-line-body">
-            Table <code>{change.from}</code> → <code>{change.to}</code>
-          </span>
-        </li>
-      );
-    case "column-added":
-      return (
-        <li className="diff-line diff-line--added">
-          <span className="diff-mark" aria-hidden="true">+</span>
-          <span className="diff-line-body">
-            <code>
-              {change.table}.{change.column.name}
-            </code>{" "}
-            <span className="diff-line-detail">{formatColumn(change.column)}</span>
-          </span>
-        </li>
-      );
-    case "column-dropped":
-      return (
-        <li className="diff-line diff-line--dropped">
-          <span className="diff-mark" aria-hidden="true">−</span>
-          <span className="diff-line-body">
-            <code>
-              {change.table}.{change.name}
-            </code>
-          </span>
-        </li>
-      );
-    case "column-renamed":
-      return (
-        <li className="diff-line diff-line--renamed">
-          <span className="diff-mark" aria-hidden="true">→</span>
-          <span className="diff-line-body">
-            <code>
-              {change.table}.{change.from}
-            </code>{" "}
-            <span aria-hidden="true">→</span> <code>{change.to}</code>
-          </span>
-        </li>
-      );
-    case "column-changed":
-      return (
-        <li className="diff-line diff-line--changed">
-          <span className="diff-mark" aria-hidden="true">±</span>
-          <span className="diff-line-body">
-            <code>
-              {change.table}.{change.column}
-            </code>{" "}
-            <span className="diff-line-detail">
-              {change.changes.map(describePropertyChange).join(" · ")}
-            </span>
-          </span>
-        </li>
-      );
-    case "primary-key-changed":
-      return (
-        <li className="diff-line diff-line--changed">
-          <span className="diff-mark" aria-hidden="true">±</span>
-          <span className="diff-line-body">
-            Primary key of <code>{change.table}</code>:{" "}
-            {formatPrimaryKey(change.from)} → {formatPrimaryKey(change.to)}
-          </span>
-        </li>
-      );
-    case "foreign-key-added":
-      return (
-        <li className="diff-line diff-line--added">
-          <span className="diff-mark" aria-hidden="true">+</span>
-          <span className="diff-line-body">
-            Foreign key on <code>{change.table}</code>:{" "}
-            <code>{formatForeignKey(change.foreignKey)}</code>
-          </span>
-        </li>
-      );
-    case "foreign-key-dropped":
-      return (
-        <li className="diff-line diff-line--dropped">
-          <span className="diff-mark" aria-hidden="true">−</span>
-          <span className="diff-line-body">
-            Foreign key on <code>{change.table}</code>:{" "}
-            <code>{formatForeignKey(change.foreignKey)}</code>
-          </span>
-        </li>
-      );
-  }
+function PickButton({
+  tone,
+  label,
+  state,
+  onPick,
+}: {
+  /** Which branch this side is: violet for the one merged into,
+   *  magenta for the one being merged. */
+  tone: "ours" | "theirs";
+  label: string;
+  state: "open" | "kept" | "dropped";
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn merge-pick merge-pick--${tone} merge-pick--${state}`}
+      aria-pressed={state === "kept"}
+      onClick={onPick}
+    >
+      Keep “{label}”'s version
+    </button>
+  );
 }

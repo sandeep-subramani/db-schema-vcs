@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { SchemaChange, Table } from "engine";
 import {
   describePropertyChange,
@@ -34,7 +35,16 @@ export function DiffCardGrid({
   );
 }
 
-function DiffCard({ card }: { card: TableCard }) {
+/** Exported so the merge timeline can place one card per side of a
+ *  rung; the grid above is just many of these in a wrapper. */
+export function DiffCard({
+  card,
+  badge,
+}: {
+  card: TableCard;
+  /** Extra pill after the status badge — the merge view's CONFLICT. */
+  badge?: ReactNode;
+}) {
   return (
     <section className={`diff-card diff-card--${card.status}`}>
       <header className="diff-card-head">
@@ -44,6 +54,7 @@ function DiffCard({ card }: { card: TableCard }) {
             {card.status}
           </span>
         )}
+        {badge}
         {card.renamedFrom && (
           <>
             <span className="diff-badge diff-badge--renamed">renamed</span>

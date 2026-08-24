@@ -174,4 +174,105 @@ scope change gets a decisions.md entry.
       glyph as a sibling warning. Not copied: the reference sets the
       identifiers inside a collateral line in mono — the engine emits
       those lines as finished sentences (NOTES.md)
-- [ ] Remaining views, one reference image at a time
+- [x] Remaining views (diff / commit detail, history rail, merge in
+      every state, compare, repo error, pending-merge banner): shared
+      screen header with mono side-coloured branch names; table cards
+      on a solid panel base with a corner wash instead of a flat fill;
+      mono identifiers and amber `±`; rename question as a violet-lit
+      sheet; merge conflicts with a ringed `!`, a drawn VS divider,
+      violet (not green) for the kept side, amber blocked status and a
+      tinted-not-dimmed Apply; conflict reasons set their quoted
+      identifiers in mono (safe here — every quoted run the engine
+      emits is an identifier, unlike the dialogs-pass collateral
+      lines); compare as one FROM/TO sheet with visually-hidden field
+      labels; history commits as branch-line cards. The stale-save
+      dialog needed nothing — verified against a live conflict, not
+      assumed
+- [x] Merge view, second pass — reference reshapes it as a branch
+      graph: one spine down from a BRANCH POINT marker with each side's
+      cards hung off it, a table both branches touched sharing a rung,
+      conflicts collapsed to one compact row with the two picks inline.
+      Needed one new tested pure function (buildMergeTimeline in
+      client/src/diff/view-model.ts, 5 tests) to zip the two sides'
+      cards into rungs and record which conflicts touch each table —
+      approved mid-task, the only step past JSX-and-CSS in the whole
+      redesign. Rungs carry conflict ids rather than a flag so a
+      settled conflict stops showing red
+- [x] Dropdowns: every native `<select>` replaced by one in-house
+      listbox (`client/src/components/Select.tsx`) — same panel,
+      border and violet tick as the theme and account popovers, since
+      the OS drew the old lists as a white slab no CSS could reach.
+      All eight call sites: column type (row + add form), both foreign
+      key pickers, branch switcher, Compare's from/to branch and
+      commit, new-branch "Starting from". The list portals into
+      `<body>` to escape the columns table's overflow clip and flips
+      above the trigger when there's no room below. Full keyboard
+      parity with a native select (arrows, Home/End, PageUp/Down,
+      Enter, Escape, type-ahead) plus combobox/listbox roles. Also new:
+      `ColumnTypeIcon.tsx`, seventeen hand-drawn glyphs — one per
+      column type, on the closed control as well as in the list, with
+      variants of one idea sharing a glyph and differing by a corner
+      badge. This is the second step past JSX-and-CSS in the redesign
+      (a native select can't be restyled into a popover), approved
+      before the work; decisions.md #32
+- [x] Identity menu: `Switch user` (was repo-list-only) and `My repos`
+      (was the repo screen's top-left `← Repos`) moved into a popover
+      under the top-right identity chip, separated by a hairline. Both
+      are now reachable from every view in a repo, since the top bar
+      renders above all of them; on the repo list `My repos` shows
+      disabled and tagged `Current`. Both go through the existing
+      `guardDirty` → `UnsavedDialog`, so unsaved edits get the same
+      Save / Discard / Cancel choice as a branch switch. The two logic
+      changes (App's `switchUser`, RepoScreen's `onSwitchUser` prop)
+      were approved before the work
+- [x] Repo home: the latest-commit headline card is now clickable and
+      opens that commit's diff against its predecessor — the same
+      DiffView a History row opens, with `← Repo home` as the way
+      back. Partly reverses the "latest commit's contents" cut in
+      decisions #27 (the home still doesn't render the diff, it only
+      links to it). One new prop
+      (`onOpenLatestDiff`) reusing RepoScreen's existing `diffTarget`
+      state; approved before the work
+- [x] Repo home / editor entry doors consolidated behind one `Edit`
+      button, and the commit dialog names its destination. The home's
+      `Open in editor` plus the top bar's `Import JSON` / `Import SQL`
+      / `Export JSON` were four ways out of one screen; now `Edit`
+      (right-aligned beside the repo name, where `Open in editor` was)
+      opens the first-commit gate on demand, and its three doors are
+      the only route to the editor and both importers. The gate takes
+      a second copy set for a branch that already has a schema
+      ("Change the schema on X", "Replace from JSON/SQL", no
+      first-commit ring, no example-schema shortcut, plus a
+      `← Back to the repo home` link the automatic gate doesn't get).
+      Export JSON now lives only on the home's rail. The commit
+      dialog's submit button reads `Commit into <branch>` instead of
+      `Commit` — no branch picker, since committing onto another
+      branch would overwrite its working state with a schema never
+      based on it. Two view-state flags and one prop rename; the
+      commit path itself is untouched. Approved before the work,
+      including the drop of the branch-picker idea — needs a
+      decisions.md entry
+- [x] Undo scoped to the views that can use it. The top-bar `Undo` was
+      on every screen, disabled on most; it now renders only in the
+      editor and on the repo home — the two views showing the working
+      schema, which is the only thing the undo stack holds. Hidden on
+      the entry doors, commit/working diffs, Compare and Merge, and its
+      separator hairline hides with it. `Ctrl/Cmd+Z` is gated to the
+      same views, which fixes a real bug: in Compare and Merge the
+      shortcut reverted an edit with nothing on screen to show it, and
+      in a diff it rewrote the diff being read. The empty-stack case
+      was always a harmless no-op. First logic change of the restyle
+      (a guard on the keydown effect, plus three derivations hoisted
+      above the `loadError` early return so the hook stays
+      unconditional) — approved before the work; decisions.md #30
+- [x] Editing a merge before committing it. The pending-merge banner's
+      phrase "adjust in the editor" is now a link that opens the editor
+      on the merged working state, and while a merge is pending the
+      repo home's `Edit` goes straight to the editor instead of the
+      entry doors (whose `Replace from JSON/SQL` would have discarded
+      the merge). No state change was needed — the merged schema is
+      already the branch's working state, and `doCommit` commits what's
+      on screen with the merge marker, so adjustments land inside the
+      merge commit. Second logic change of the restyle (one handler
+      that clears view flags, one conditional callback) — approved
+      before the work; decisions.md #31

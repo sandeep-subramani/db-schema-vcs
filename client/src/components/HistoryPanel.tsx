@@ -48,14 +48,17 @@ export function HistoryPanel({
                       : undefined
                   }
                 >
-                  <span className="commit-message">
-                    {commit.message}
-                    {commit.id === branchPointId && (
-                      <span className="commit-badge">branch point</span>
-                    )}
-                  </span>
-                  <span className="commit-meta">
-                    {commit.author} · {timeAgo(commit.createdAt)}
+                  <span className="commit-dot" aria-hidden="true" />
+                  <span className="commit-row-text">
+                    <span className="commit-message">
+                      {commit.message}
+                      {commit.id === branchPointId && (
+                        <span className="commit-badge">branch point</span>
+                      )}
+                    </span>
+                    <span className="commit-meta">
+                      {commit.author} · {timeAgo(commit.createdAt)}
+                    </span>
                   </span>
                 </button>
               </li>

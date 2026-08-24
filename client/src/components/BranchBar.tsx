@@ -1,10 +1,11 @@
 import type { Branch } from "../api.ts";
 import { timeAgo } from "../time.ts";
+import { Select } from "./Select.tsx";
 
 // Branch-level controls in one row: where you are, where you can go,
-// and the save/commit state of what you're looking at. The select
-// indents children under parents — the branch tree of decisions.md #7
-// read as an outline.
+// and the save/commit state of what you're looking at. The branch
+// dropdown indents children under parents — the branch tree of
+// decisions.md #7 read as an outline.
 export function BranchBar({
   branches,
   currentId,
@@ -21,6 +22,7 @@ export function BranchBar({
   canCompare,
   compareOpen,
   canCommit,
+  commitBlockedReason,
   onSwitch,
   onNewBranch,
   onSave,
@@ -49,9 +51,12 @@ export function BranchBar({
   /** False until some branch has a commit — nothing to compare before that. */
   canCompare: boolean;
   compareOpen: boolean;
-  /** False on an empty branch with no commits — an empty first commit
-   *  would only dismiss the gate, so bring a schema in first. */
+  /** False when there is nothing to commit: an empty branch with no
+   *  commits, or a schema that matches the last commit (decisions.md
+   *  #28). Why, in words, comes in on commitBlockedReason. */
   canCommit: boolean;
+  /** Tooltip for the disabled Commit button — which of the two it is. */
+  commitBlockedReason: string;
   onSwitch: (branchId: number) => void;
   onNewBranch: () => void;
   onSave: () => void;
@@ -100,17 +105,17 @@ export function BranchBar({
         <span className="branch-label">Branch</span>
         <span className="branch-pill">
           <span className="branch-pill-dot" aria-hidden="true" />
-            <select
+          <Select
+            menuClassName="uiselect-menu--mono"
             value={currentId}
-            aria-label="Switch branch"
-            onChange={(e) => onSwitch(Number(e.target.value))}
-          >
-            {ordered.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {`${"  ".repeat(depth(branch))}${branch.name}`}
-              </option>
-            ))}
-          </select>
+            options={ordered.map((branch) => ({
+              value: branch.id,
+              label: branch.name,
+              depth: depth(branch),
+            }))}
+            ariaLabel="Switch branch"
+            onChange={onSwitch}
+          />
         </span>
       </label>
       <button
@@ -164,11 +169,7 @@ export function BranchBar({
           className="btn btn--primary"
           onClick={onCommit}
           disabled={saving || !canCommit}
-          title={
-            canCommit
-              ? undefined
-              : "Nothing to commit yet — bring a schema in first"
-          }
+          title={canCommit ? undefined : commitBlockedReason}
         >
           Commit…
         </button>

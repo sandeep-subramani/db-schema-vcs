@@ -669,3 +669,556 @@ the rest of the sentence stays in the UI face. Those lines arrive from
 the engine as finished sentences, so picking the identifier out would
 mean parsing strings in the view or changing what the engine emits —
 logic, not presentation. The line stays in one face for now.
+
+## UI restyle, pass 7 — the read-only screens: diff, history, merge, compare
+
+The last batch of views. Everything here is presentation: render
+markup and CSS.
+
+The screens are all built from the same three pieces, so restyling
+them was mostly restyling those pieces once.
+
+**The screen header.** Diff, merge and compare share one head: a
+panel-coloured *← Editor* button, then the title at empty-state size
+(1.85rem, tight) with a muted line under it. Merge names its branches
+in mono and colours them by side — magenta for the branch being
+merged, violet for the branch it lands in — so the direction of the
+merge is legible before you read the sentence.
+
+**The table card.** Every table that moved is a card. Cards now sit on
+a solid panel base instead of being transparent, which stops the
+worktop's dot-grid showing through and competing with the change
+lines. The verdict is carried by the border plus a light diagonal wash
+from the top-left corner, never a flat fill. Table names are mono, the
+ADDED / DROPPED / RENAMED badges are small mono uppercase, and inside
+a change line the identifier is mono at weight 600 while its
+description stays muted — so `id` reads as a name and `Unique ID` as a
+description. The `±` changed-mark moved from violet to amber, which
+gives the diff three non-overlapping meanings: green added, red
+dropped, amber changed, and leaves violet to mean "interactive".
+
+**The rename question.** A violet-lit sheet with a diagonal wash,
+because answering it is the one interactive thing on an otherwise
+read-only screen. *Yes, renamed* is the violet-tinted button, *No* is
+plain.
+
+Then the per-screen work.
+
+**Merge.** The conflict count wears a ringed `!` in the danger red.
+Each conflict is a red-washed card; the two sides sit either side of a
+drawn divider carrying a round `vs` token, which says "alternatives,
+pick one" in a way two adjacent boxes don't. Both sides show their
+branch dot in the side colour. Picking a side gives that side a
+*violet* tint, not green — green means "added" everywhere else, and a
+kept side isn't an addition, it's a choice you made; the green stays
+on the KEPT badge where it means outcome. The dropped side fades, and
+the card loses its red once the conflict is settled. In the footer the
+status line goes amber while the merge is still blocked and plain ink
+when it's ready, and the Apply button is violet-*tinted* rather than
+dimmed while it can't be pressed.
+
+Conflict reasons now set their quoted identifiers in mono —
+`both sides changed maxLength of "users.email"`. This is the thing the
+dialogs pass said we couldn't do, done safely: every quoted run in
+every reason the engine emits is an identifier (checked in
+`engine/src/merge.ts`), so a four-line formatter can style quoted runs
+at render time without parsing prose and without changing what the
+engine says.
+
+**Compare.** Both ends live on one sheet: `FROM` and `TO` as mono
+uppercase labels over each pair of selects, the swap button between
+them. The reference draws no "Branch" / "Commit" labels, and on screen
+they are redundant — but two unlabelled selects per side is a dead end
+for a screen reader, so they're still there, just visually hidden. The
+swap button gained an `aria-label` for the same reason.
+
+**History rail.** Each commit is a rounded card on a branch line: a
+node dot, the message, then who and when. The open commit fills its
+dot violet and tints its card. No connecting line between the dots —
+the reference doesn't draw one, and one would imply parentage the rail
+doesn't render (a branch point is a badge here, not a line). Width
+stayed at 17rem; see the decisions file for why it isn't 18.
+
+**Pending-merge banner.** A violet strip under the branch bar. The
+sentence flexes and wraps inside whatever room is left so the three
+ways out — Review changes, Commit merge…, and *Abandon* in red — keep
+their row on the right at any width.
+
+**Repo error.** `Can't open this repo` now opens with a red-tinted
+rounded `!` tile, the same glyph-tile family the dialogs use. Empty
+states in general got air above their action button.
+
+The stale-save dialog was in the batch but needed nothing — it already
+matched, having come out of the dialogs pass. Confirmed against a live
+conflict rather than assumed.
+
+### Two follow-up fixes in the editor
+
+**The checkbox that moved when you ticked it.** Reported as: clicking a
+PK/NULLABLE/UNIQUE box nudges it down, unticking nudges it back, while
+boxes that load already ticked look fine.
+
+The drawn checkbox is `display: inline-grid`, and the tick is a
+`:checked::before` pseudo-element. An inline-grid with no in-flow
+items takes its baseline from its bottom margin edge; the moment the
+tick appears the container inherits *that item's* baseline instead, so
+the box shifts against the text line. Default-checked boxes had the
+same offset all along — nothing animated, so nobody saw it.
+
+Fix is one line: `vertical-align: middle` on the box, which aligns it
+to the line's middle instead of a content-dependent baseline. Position
+is now independent of whether the tick exists. Verified by measuring
+`getBoundingClientRect().top` across a row before and after a real
+click: all three boxes level, zero movement on toggle.
+
+**"Unsaved changes" now reads as a warning.** It was a line of muted
+text with a violet dot, sitting quietly next to *+ New branch* — which
+undersells it, because unsaved work is the one thing on that bar you
+can actually lose. It is now an amber pill: a rounded border, a
+half-transparent amber fill, amber text and an amber dot. Same
+"needs you" amber as the blocked merge status, so the app has one
+colour for "there is something here you have to deal with".
+
+The clean state (`Saved 3h ago by sandeep`) stays plain muted text —
+nothing is at risk there, so it shouldn't compete.
+
+### The identity menu — two navigations that follow you around
+
+Leaving where you are had two doors, and each existed on exactly one
+screen. `Switch user` lived only in the repo-list top bar; `← Repos`
+lived only in the repo top bar, at the far left. So from inside a repo
+you could not change identity at all without first backing out to the
+list, and neither door was where you would look for it — the thing
+that says *who you are* was the identity chip in the top right, and it
+did nothing.
+
+Both are now items inside that chip. The chip became a popover
+trigger, and the panel under it holds `My repos`, a hairline, then
+`Switch user`. The old top-bar buttons are gone.
+
+Why this is more than tidying: the chip renders in the top bar, and
+the top bar renders above *every* view in a repo — editor, first-commit
+gate, diff, compare, merge, all states. Putting the two navigations
+there gets them into all of those at once, without adding a button to
+each. The repo-list screen shows the same panel with `My repos`
+disabled and tagged `Current`, so the menu has one shape everywhere
+rather than a different set of items per screen.
+
+**Unsaved work.** Both items leave the repo, so both take the same
+route a branch switch takes: `guardDirty`, which shows the existing
+three-way `UnsavedDialog` — *Save & continue*, *Discard changes*,
+*Cancel* — when the schema on screen isn't the one we last saved. No
+new warning UI was invented for this; the dialog already phrased
+itself around whatever you were trying to do, so switching user reads
+"Save them before you switch user". Nothing new can be lost silently:
+if `dirty` is false the guard just goes.
+
+Switching user clears the open repo along with the name, which is what
+the repo-list button already did — the next person lands on their own
+list, not on someone else's branch.
+
+Two logic changes were needed and are the only ones: `App` grew a
+`switchUser` function it now also passes to `RepoScreen`, and
+`RepoScreen` grew the matching `onSwitchUser` prop. Everything else is
+markup and CSS. Behaviour that already existed — the guard, the native
+tab-close prompt, the save model — is untouched.
+
+### Merge view, second pass: the branch graph
+
+The side-by-side merge screen became a branch graph. Same data, read a
+different way.
+
+**What changed shape.** Before: a conflict card carrying two side
+boxes, then two independent card grids below it. Now: one spine running
+down from a BRANCH POINT marker, with each side's cards hung off it
+left and right — and a table *both* branches touched shares a single
+rung, so a disagreement reads across one line instead of down two
+columns. Conflicts collapse to one compact row each: what disagrees on
+the left, the two ways out on the right.
+
+**The one new piece of machinery.** `buildMergeTimeline` in
+`client/src/diff/view-model.ts` — a pure function that zips the two
+sides' card lists into rungs. Same table name = same rung. Order comes
+from walking both lists in step (ours first at each index), which keeps
+each side's own diff order intact rather than imposing an alphabet on
+it. It also collects, per table, the ids of every conflict group
+touching it, so a card can say CONFLICT and the view can tell an open
+conflict from one you've already settled. Five tests.
+
+Ids rather than a boolean is the part that matters. Once you pick a
+side, the conflict row goes quiet — and a card still shouting CONFLICT
+in red next to a calm row would make the screen untrustworthy. With
+ids, a rung knows whether *its* conflicts are all picked: settled rungs
+keep the badge (the conflict did happen) but drop the alarm colour.
+
+**Colour.** The spine is a violet-to-magenta gradient, the two branch
+colours meeting on it. Each node takes the spine's colour where it
+sits — done by handing the row its position down the spine (0–1) as a
+CSS custom property and letting `color-mix` interpolate, so it stays a
+sampled gradient rather than a hardcoded list. Conflict nodes override
+to red and grow. Each card gets a brighter 2px edge on whichever side
+the spine is on, so the branch line reads as feeding into the card
+rather than stopping short of it. Pick buttons wear their own branch's
+colour — violet for the parent, magenta for the branch being merged —
+and fill when chosen.
+
+**What the conflict card gave up.** It used to list, per side, exactly
+which changes were bundled in the group. That's gone by choice: the
+detail now lives on the CONFLICT-badged cards. The honest cost is that a card shows *all* of
+that table's changes, not only the conflicting ones, and a group
+spanning two tables badges both without saying they're one bundle.
+
+**Narrow windows.** A three-column graph needs room. Under 62rem the
+spine, nodes and leader lines go away, the rungs become one stacked
+list, and each card gains a small mono label naming its branch —
+because once the columns collapse, the headings above stop telling you
+which side you're looking at.
+
+## Dropdowns: one listbox of our own, and a glyph per column type
+
+**The problem in one sentence.** A native `<select>` lets you style the
+box but not the list — the list is drawn by the operating system, so on
+macOS it opened as a white slab with blue rows in the middle of a
+near-black app. Six of them, on four screens.
+
+**What replaced it.** `client/src/components/Select.tsx`: a button that
+shows the current value, and a list that opens under it. Same panel,
+border, shadow and violet tick as the theme and account popovers in the
+top bar, because it is built the same way. All eight call sites now use
+it — the column-type picker (per row and in the add-column form), both
+foreign-key pickers, the branch switcher, Compare's from/to branch and
+commit pickers, and the new-branch dialog's "Starting from".
+
+Three details are load-bearing rather than decorative:
+
+- **The list is portalled into `<body>`.** Two of the call sites sit
+  inside scroll containers — the columns table scrolls sideways, the
+  compare bar sits in the scrolling page — and a list positioned
+  relative to its trigger would be clipped by that overflow. A
+  fixed-position portal escapes every ancestor, and the price is that
+  the list has to be re-measured on scroll and resize, which a layout
+  effect does. The same measurement decides whether the list drops down
+  or flips up: it flips when there isn't room below and there is more
+  room above, which is what the foreign-key pickers at the bottom of
+  the editor do.
+- **Escape stops at the menu.** Every dialog listens for Escape on
+  `window`. Without `stopPropagation` in the menu's own handler, one
+  press would close the dropdown *and* the dialog behind it. Caught by
+  driving it in the browser, not by reading it.
+- **Hover follows `pointermove`, not `pointerenter`.** With
+  `pointerenter`, opening the list with the keyboard while the cursor
+  happened to be parked over where the list appears would instantly
+  yank the highlight off the row the keyboard had landed on. Listening
+  for actual movement fixes it.
+
+Keyboard behaviour matches what a native select gives you: ↑↓, Home,
+End, PageUp/PageDown, Enter or Space to pick, Escape to cancel, and
+type-ahead (press `u` in the type list and it goes to Unique ID;
+pressing the same letter again walks through the options sharing it).
+The trigger is a `combobox`, the list a `listbox` of `option`s, with
+`aria-activedescendant` tracking the highlight — so focus can stay in
+one place while the highlight moves, the way a listbox is supposed to
+work.
+
+**The type glyphs.** `client/src/components/ColumnTypeIcon.tsx` — one
+small drawing per column type, shown in the list and on the closed
+control, so a table's column types can be scanned down the Type column
+without opening anything. They're hand-drawn rather than pulled from an
+icon set because the type vocabulary is our own invention
+(`engine/src/types.ts`): no off-the-shelf set has a "whole number
+(large)".
+
+Two conventions keep seventeen drawings looking like one family. Every
+base glyph lives in the same square of the canvas, so none reads
+heavier than its neighbours. And variants of one idea share a glyph and
+differ only by a badge in the bottom-right corner — the base shrinks to
+make room, with its stroke width scaled back up so it stays the same
+hairline. So the three integer widths are one `#` with one, two or
+three dots; auto-number is a climbing staircase with the same dots;
+"with time zone" is the plain clock or calendar plus a small globe; and
+"date & time" is the calendar plus a small clock.
+
+**What the CSS lost.** The global `select` rules are gone, along with
+`select option` (which existed only to stop the OS list inheriting
+white-on-white) and the `.branch-pill::after` caret (the control draws
+its own now, and it rotates when open). `.visually-hidden` went too:
+Compare's two off-screen field labels were its only users, and those
+labels are now the dropdowns' `aria-label`s.
+
+## The latest-commit card on the repo home opens its diff
+
+The repo home already showed a one-line headline for the branch's last
+commit — who committed, the message, how long ago. It was a label and
+nothing more: decision #27 had explicitly cut "the latest commit's
+contents" from the home, because rendering the changes inline means
+fetching two snapshots (this commit and the one before it) and diffing
+them, and the home's rule was "nothing that costs an extra request".
+
+That rule still holds for what the home *draws*, but not for what it
+*links to*. Clicking the card now opens the diff screen for that
+commit — the same screen a History row opens, comparing the commit
+with its predecessor. The cost only lands when someone asks for it,
+and it's a screen that already exists, so nothing new was built.
+
+The wiring is three lines: `RepoOverview` takes an `onOpenLatestDiff`
+callback and renders the card as a `<button>` when there is a commit
+(no commits means nothing to open, so the empty state stays inert
+text); `RepoScreen` answers by setting the `diffTarget` state it
+already owns to `commits[0]`. Because `DiffView` is rendered above the
+home in `RepoScreen` and `showOverview` stays true underneath, the
+diff's back button reads `← Repo home` and closing it lands you back
+where you clicked. No new state, no new endpoint, no new fetch path.
+
+Two inherited corners, both identical to clicking the same commit in
+the History panel: if that commit is a branch's copied split point
+(decisions #16) the diff renders the "nothing was authored here"
+marker, and if it's main's very first commit it diffs against an empty
+schema. The CSS is a button reset plus the `.repo-row` hover/focus
+treatment, so the card looks unchanged at rest and picks up a violet
+border and a soft shadow under the pointer.
+
+## Empty commits are refused
+
+A branch you hadn't touched since its last commit could still be
+committed. The entry landed in History looking like any other, and
+clicking it opened the diff screen showing "No schema changes" — a
+version that records nothing, sitting in the middle of the story of
+the branch. Worse, a diff is always computed against the commit
+before it, so a run of no-op commits pushes the last real change
+further out of reach.
+
+The fix is one rule, enforced where it can't be bypassed. Before a
+commit writes anything, the server compares the incoming schema with
+the branch's last commit. If nothing differs, it answers 400 and
+writes nothing at all.
+
+Two details make it behave:
+
+**It compares with the engine's diff, not with the raw JSON.** The
+same `diffSchemas` the diff screen draws with. That's what makes the
+rule airtight rather than approximate — the condition for refusing a
+commit is *literally* the condition under which the diff screen would
+say "no schema changes", so the two can't disagree. It also means a
+pure reorder of tables or columns counts as unchanged, which is
+already the answer decision #18 gives everywhere else.
+
+**The check runs first, before anything is written.** A commit is
+normally "save the working state, then stamp it" in one transaction.
+The emptiness check happens before the save, so a refused commit
+leaves the working state exactly where it was — you can still Save,
+you just can't stamp a version that says nothing.
+
+Merge commits are the exception, and they have to be. A merge commit
+does bookkeeping beyond the schema: it advances the merged branch's
+stored base, which is what lets that branch keep going without
+re-reporting the changes it already handed over (decision #20). If the
+merged result happens to match what the target branch already had —
+the source's changes were already there, or you undid them while
+reviewing — refusing the commit would leave the merge unrecordable.
+So a commit carrying a merge marker skips the check.
+
+On the client, the Commit… button now greys out under the same rule
+instead of only on the old "is there a schema at all" test, and the
+tooltip says which case it is: nothing committed yet, or nothing
+changed since the last commit. To know that, the screen needs the last
+commit's schema, which the branch load didn't have — the commit list
+carries messages and authors, not snapshots. So the load makes one
+extra request for the tip commit, and after each commit the schema
+just committed becomes the new tip with no fetch at all. If that
+request fails the button stays live and the server has the last word;
+the worst case is a slightly less helpful message, never a stuck
+button.
+
+Files: `commitWorking` in [server/src/store.ts](server/src/store.ts)
+(the check and a new `empty` result), the commit route in
+[server/src/api.ts](server/src/api.ts) (400 plus the two messages),
+`RepoScreen` (tip snapshot state, `canCommit`) and `BranchBar` (one
+new prop for the disabled tooltip). Three server tests cover it: the
+refusals write nothing, a reorder counts as unchanged, and a no-op
+merge commit still lands and still advances the base.
+
+## One `Edit` button instead of four ways out of the repo home
+
+The repo home had grown four exits: `Open in editor` beside the repo
+name, and `Import JSON`, `Import SQL`, `Export JSON` in the top bar —
+with a second copy of all three imports/exports down in the home's
+right-hand rail. Two complaints, both fair. The screen was a wall of
+buttons, and the two schema editors were split across the layout: JSON
+and SQL up in the chrome, the hand editor somewhere else entirely.
+
+The fix reuses a page we already had. A brand-new branch opens on the
+**first-commit gate** — three door cards saying "build it by hand",
+"paste JSON", "paste SQL". That page already *is* the list of ways to
+get a schema in; it was just unreachable once the branch had one. So
+`Edit` on the repo home now opens it on demand, and the doors are the
+only route to the editor and to either importer. The top bar keeps
+Undo, Share, theme and identity; Export JSON moved to the home's rail
+and lives in exactly one place.
+
+**The gate needed two voices.** Its copy was written for an empty
+branch: "This branch is empty", "Start from zero", a hollow ring
+labelled "your first commit on main", and a "Load the example schema"
+shortcut. Every one of those is wrong or destructive on a branch with
+eight tables in it. So the component takes a `hasSchema` flag and
+switches copy: "Change the schema on *main*", doors that say **Replace
+from** JSON/SQL and warn that they replace what's there, no
+first-commit ring, no example-schema link. The on-demand doors also
+get a `← Back to the repo home` link; the automatic gate doesn't,
+because it's a branch's landing page and there is nothing behind it.
+The automatic gate is otherwise unchanged, verified side by side.
+
+**Where the doors sit in the view stack.** RepoScreen picks its middle
+view from a handful of flags. The new `doorsOpen` sits in the same slot
+as the repo home — *below* merge, compare and diff — so opening a diff
+from the branch bar still takes over the screen, and closing it comes
+back to the doors rather than dumping you in the editor. The automatic
+gate keeps its old position at the top of the chain, so an empty
+branch still can't be navigated away from by accident. Both render
+through one `renderDoors(showBack)` helper, so there's one copy of the
+door wiring, not two.
+
+**The commit dialog names its target instead of asking for one.** The
+ask was a branch dropdown, pre-filled with main. I pushed back and it
+was dropped, for a reason worth writing down: a commit here is "save
+the schema on screen into this branch's working state, then stamp it",
+and that save is guarded by a per-branch revision number that only the
+branch on screen holds. Committing onto a *different* branch would
+overwrite that branch's saved-but-uncommitted work with a schema never
+based on it, using a revision we don't have. Git can't do it either —
+you switch branch, then commit. And pre-filling `main` while standing
+on `feature` would make the dialog's default action the destructive
+one. So the dialog's submit button just says what will happen:
+**`Commit into main`**. Same code path, one label.
+
+Files: [FirstCommitGate.tsx](client/src/components/FirstCommitGate.tsx)
+(the `hasSchema` copy split and the optional back link),
+[RepoOverview.tsx](client/src/components/RepoOverview.tsx) (`Edit` in
+place of `Open in editor`, import buttons gone from the rail),
+[RepoScreen.tsx](client/src/components/RepoScreen.tsx) (`doorsOpen`,
+`renderDoors`, the trimmed top bar, the commit submit label), plus one
+CSS rule for the back link. No engine, server or API change, and no
+test change — the suites here cover the engine, the server and the
+pure client helpers, none of which this touches.
+
+## App frame removed — the sheet now runs edge to edge
+
+The dark border around every screen wasn't the browser or the
+screenshot: it was ours. From the pass-1 restyle, `.app` sat inside a
+12px margin with a 14px corner radius, and `body` was painted
+`--frame` (`#08080c`) so that gutter read as a chrome bezel — "a
+drafting board on a desk". It applied everywhere because `.app` is the
+single wrapper `App.tsx` renders around every screen, and because
+`--frame` is a flat hex rather than a `light-dark()` pair, the black
+band stayed black in the light theme too.
+
+That's now gone. `.app` loses the margin and the radius and takes
+`min-height: 100vh` instead of `calc(100vh - 24px)` (the old value was
+only there to pay back the 12px top and bottom). `body` is repainted
+`var(--bg)` so an overscroll bounce reveals the same ground as the
+sheet rather than a different one. The `--frame` token stays — half a
+dozen box-shadows mix against it, and those are unaffected.
+
+Files: [index.css](client/src/index.css) (the `body` and `.app` rules
+only). CSS-only: no JSX, no logic, nothing else in the sheet moved,
+and no other rule depended on the 12/24px inset.
+
+## Undo now appears only where it can actually do something
+
+The `Undo` button sat in the top bar on every screen, greyed out on
+most of them. Here is what it actually controls, which is what decided
+where it belongs.
+
+There is one undo stack, and it holds nothing but past versions of the
+*schema on screen* — the working copy you're editing, before you save
+or commit it. It starts empty every time you open a branch, so it is
+never live until you've changed something in that sitting. Seven
+actions push onto it: adding, renaming or deleting a table; any column
+or key edit; importing JSON; importing SQL; loading the example
+schema; "load their version" when a save collides with someone else's;
+and abandoning a pending merge. Nothing that reaches the server is on
+it — a commit, a save, a new branch, a completed merge and a share are
+all one-way.
+
+So the button is only ever useful on the two screens that put that
+working schema in front of you: the editor, where six of those seven
+edits are made, and the repo home, where the table summary changes
+under you when an undo lands and where "abandon merge" drops you. On
+the entry doors, a diff, Compare and Merge it could only be dead
+chrome, so it isn't drawn there — and its little separator hairline
+goes with it, or it would dangle in front of the theme picker.
+
+The keyboard shortcut moved with it, and that part fixed a bug rather
+than tidying one. `Ctrl/Cmd+Z` was a window-level listener, live on
+every screen. Compare and Merge don't render the working schema at
+all, so hitting it there reverted your last edit and *nothing on the
+page moved* — the change was gone and there was no way to tell. (In
+the working diff it was gentler but still wrong: the diff you were
+reading quietly rewrote itself.) The empty-stack case was never a
+problem — `undo()` hands React back the same history object and React
+skips the re-render — which is why this only bit after an
+edit-then-go-review round trip inside one branch. The shortcut is now
+bound to exactly the views that show the button, so the keystroke and
+the control can't disagree.
+
+One structural wrinkle worth knowing if you touch this file: the
+listener is a hook, hooks can't sit after a conditional return, and
+`RepoScreen` returns early when the repo failed to load. So
+`currentBranch`, `showGate` and the new `showUndo` moved above that
+early return. They're plain derivations off top-level state, so the
+move is positional only.
+
+Files: [RepoScreen.tsx](client/src/components/RepoScreen.tsx) — the
+`showUndo` derivation, the guard and dependency on the `Ctrl/Cmd+Z`
+effect, the three hoisted derivations, and the conditional around the
+button and its hairline in the top bar. No CSS, no other component, no
+engine, server or API change. No test change: the suites cover the
+engine, the server and the pure client helpers, and this is view
+state.
+
+## Adjusting a merge before you commit it
+
+A merge rarely lands a schema that's ready as-is, so the pending-merge
+banner needed a way to keep working on the result. It turned out the
+way already existed and was just hidden.
+
+Here is what actually happens when a merge is applied. `MergeView`
+computes the merged schema in the browser and writes it into the
+*parent branch's working state* — the scratch copy the editor edits,
+not history. `landMerge` then switches you to that branch and reloads
+it, so the schema on screen is the merged one. Everything downstream
+reads that same object: the home's table list, `Review changes`, and
+the editor. So `Edit` during a pending merge was never showing you the
+last commit — it was showing the merge. It just took two clicks to get
+there, through the entry-doors page whose other two doors are
+`Replace from JSON` and `Replace from SQL`, either of which would have
+thrown the merge away.
+
+Two changes, both about the route rather than the state:
+
+- The banner's own sentence already said "adjust in the editor". That
+  phrase is now a link that does it — one click from the banner to the
+  editor, on the merged working state. It stays in the prose instead of
+  becoming a fourth button because the banner's job is to lead to
+  `Commit merge…`, and a fourth control in that row works against it.
+- While a merge is pending on the branch you're on, `Edit` on the repo
+  home now goes straight to the editor too, skipping the doors. With no
+  merge pending it opens the doors exactly as before.
+
+The banner renders above the layout rather than inside any one view, so
+it stays pinned while you edit — `Commit merge…` and `Abandon` are
+always one click away. And the commit path needed nothing: `doCommit`
+already commits the schema currently on screen and attaches the merge
+marker, so adjustments made before committing land *inside* the merge
+commit. One commit, merge plus fixes, and the source branch's base
+still advances in the same transaction.
+
+Files: [RepoScreen.tsx](client/src/components/RepoScreen.tsx) — the new
+`openMergeEditor` handler (it only clears the view-state flags stacked
+on top of the editor; no loading, because the merged schema is already
+the working state), the banner sentence, and the `onOpenDoors` callback
+passed to `RepoOverview`. [index.css](client/src/index.css) — the link
+inside the banner takes ink weight and an accent underline, since the
+usual accent link colour sinks into the banner's accent-tinted ground.
+No engine, server or API change, and no test change: the suites cover
+the engine, the server and the pure client helpers, and this is view
+state. Decision recorded as decisions.md #31.

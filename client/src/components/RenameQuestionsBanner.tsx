@@ -46,7 +46,11 @@ export function RenameQuestionsBanner({
         {items.map((item) => (
           <li key={item.key}>
             <span className="diff-question-text">{item.text}</span>
-            <button type="button" className="btn" onClick={() => item.answer(true)}>
+            <button
+              type="button"
+              className="btn btn--accent-soft"
+              onClick={() => item.answer(true)}
+            >
               Yes, renamed
             </button>
             <button type="button" className="btn" onClick={() => item.answer(false)}>

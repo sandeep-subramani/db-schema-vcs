@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { diffSchemas, type Schema } from "engine";
 import {
   buildDiffCards,
+  buildMergeTimeline,
   describePropertyChange,
   formatColumn,
   formatPrimaryKey,
+  type TableCard,
 } from "./view-model.ts";
 
 // Built on the real engine diff, not hand-written change lists, so a
@@ -171,5 +173,105 @@ describe("display formatting", () => {
     expect(formatPrimaryKey(undefined)).toBe("none");
     expect(formatPrimaryKey(["id"])).toBe("id");
     expect(formatPrimaryKey(["id", "tenant_id"])).toBe("(id, tenant_id)");
+  });
+});
+
+describe("buildMergeTimeline", () => {
+  const card = (name: string, status: TableCard["status"] = "changed"): TableCard => ({
+    name,
+    status,
+    changes: [],
+  });
+
+  it("puts the same table on one rung and keeps singles on their own side", () => {
+    const rows = buildMergeTimeline(
+      [card("users"), card("reviews", "added")],
+      [card("users"), card("invoices", "added")],
+      [],
+    );
+    expect(rows.map((r) => r.name)).toEqual(["users", "reviews", "invoices"]);
+    const [users, reviews, invoices] = rows;
+    expect(users!.ours?.name).toBe("users");
+    expect(users!.theirs?.name).toBe("users");
+    expect(reviews!.theirs).toBeNull();
+    expect(invoices!.ours).toBeNull();
+  });
+
+  it("walks both card lists in step, ours first at each index", () => {
+    // The interleave is what makes each side's own diff order survive:
+    // coupons is ours[2], so it lands after theirs[1] = invoices.
+    const rows = buildMergeTimeline(
+      [card("users"), card("reviews", "added"), card("coupons", "dropped")],
+      [card("users"), card("invoices", "added")],
+      [],
+    );
+    expect(rows.map((r) => r.name)).toEqual([
+      "users",
+      "reviews",
+      "invoices",
+      "coupons",
+    ]);
+  });
+
+  it("flags a table a conflict touches, from either side of the group", () => {
+    const rows = buildMergeTimeline(
+      [card("users"), card("orders")],
+      [card("users"), card("orders")],
+      [
+        {
+          id: "c1",
+          ours: [
+            { kind: "column-changed", table: "users", column: "email", changes: [] },
+          ],
+          theirs: [{ kind: "table-dropped", name: "orders" }],
+        },
+      ],
+    );
+    expect(rows.filter((r) => r.conflictIds.length > 0).map((r) => r.name)).toEqual([
+      "users",
+      "orders",
+    ]);
+    expect(rows[0]!.conflictIds).toEqual(["c1"]);
+  });
+
+  it("lists every conflict touching one table, without repeats", () => {
+    const rows = buildMergeTimeline(
+      [card("users")],
+      [card("users")],
+      [
+        {
+          id: "c1",
+          ours: [
+            { kind: "column-changed", table: "users", column: "email", changes: [] },
+          ],
+          theirs: [{ kind: "column-dropped", table: "users", name: "email" }],
+        },
+        {
+          id: "c2",
+          ours: [{ kind: "primary-key-changed", table: "users", from: ["id"], to: [] }],
+          theirs: [],
+        },
+      ],
+    );
+    expect(rows[0]!.conflictIds).toEqual(["c1", "c2"]);
+  });
+
+  it("flags both ends of a renamed table, since either can key the card", () => {
+    const rows = buildMergeTimeline(
+      [card("people")],
+      [card("customers")],
+      [
+        {
+          id: "c1",
+          ours: [{ kind: "table-renamed", from: "customers", to: "people" }],
+          theirs: [],
+        },
+      ],
+    );
+    expect(rows.every((r) => r.conflictIds.length > 0)).toBe(true);
+  });
+
+  it("leaves untouched tables out entirely", () => {
+    expect(buildMergeTimeline([], [], [])).toEqual([]);
   });
 });

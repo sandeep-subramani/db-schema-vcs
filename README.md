@@ -8,8 +8,13 @@ conflict detection. Row data is out of scope — the schema itself
 **Live:** https://db-schema-vcs.onrender.com — free tier, so the
 first load after idle can take ~50s to wake.
 
-**Status:** day 0 — stack scaffolded (Vite + React + TS, Express 5,
-Postgres on Render) and deployed; schema features land next.
+**Status:** feature-complete on committed scope — visual schema
+editor, JSON and Postgres-SQL import, branching, commit history,
+diff (including rename detection), three-way merge with pick-a-side
+conflict resolution, and an arbitrary any-commit-vs-any-commit
+compare. A full UI redesign is in progress on `ui-redesign`.
+Remaining: stretch items (migration SQL output, column defaults and
+indexes) and ship polish.
 
 - Decision log and tradeoffs: [decisions.md](./decisions.md)
 - Built with Claude Code; every change is reviewed before commit.

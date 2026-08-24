@@ -24,7 +24,17 @@ import {
   validFkTargets,
   type EditResult,
 } from "../schema/edits.ts";
+import { ColumnTypeIcon } from "./ColumnTypeIcon.tsx";
 import { NameField } from "./NameField.tsx";
+import { Select } from "./Select.tsx";
+
+// One shared list: the row editor and the add-column form offer the
+// same seventeen types, each with its glyph (ColumnTypeIcon.tsx).
+const TYPE_OPTIONS = COLUMN_TYPE_IDS.map((id) => ({
+  value: id,
+  label: COLUMN_TYPES[id],
+  icon: <ColumnTypeIcon type={id} />,
+}));
 
 export interface EditRequest {
   result: EditResult;
@@ -110,27 +120,23 @@ export function TableEditor({
                     />
                   </td>
                   <td>
-                    <select
+                    <Select
+                      className="uiselect--type"
                       value={column.type}
-                      aria-label={`Type of column ${column.name}`}
-                      onChange={(e) =>
+                      options={TYPE_OPTIONS}
+                      ariaLabel={`Type of column ${column.name}`}
+                      onChange={(next) =>
                         onEdit({
                           result: setColumnType(
                             schema,
                             table.name,
                             column.name,
-                            e.target.value as ColumnType,
+                            next,
                           ),
                           confirmTitle: `Change the type of "${table.name}.${column.name}"?`,
                         })
                       }
-                    >
-                      {COLUMN_TYPE_IDS.map((id) => (
-                        <option key={id} value={id}>
-                          {COLUMN_TYPES[id]}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </td>
                   <td className="cell-center">
                     <input
@@ -349,17 +355,13 @@ function AddColumnForm({
           setError(null);
         }}
       />
-      <select
+      <Select
+        className="uiselect--type"
         value={type}
-        aria-label="New column type"
-        onChange={(e) => setType(e.target.value as ColumnType)}
-      >
-        {COLUMN_TYPE_IDS.map((id) => (
-          <option key={id} value={id}>
-            {COLUMN_TYPES[id]}
-          </option>
-        ))}
-      </select>
+        options={TYPE_OPTIONS}
+        ariaLabel="New column type"
+        onChange={setType}
+      />
       <button type="submit" className="btn" disabled={name.trim() === ""}>
         Add column
       </button>
@@ -443,20 +445,17 @@ function ForeignKeySection({
             });
           }}
         >
-          <select
+          <Select
+            className="uiselect--mono"
+            menuClassName="uiselect-menu--mono"
             value={chosen.name}
-            aria-label="Foreign key column"
-            onChange={(e) => {
-              setOwnColumn(e.target.value);
+            options={table.columns.map((c) => ({ value: c.name, label: c.name }))}
+            ariaLabel="Foreign key column"
+            onChange={(next) => {
+              setOwnColumn(next);
               setTargetIndex(0);
             }}
-          >
-            {table.columns.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          />
           <span className="fk-arrow">→</span>
           {targets.length === 0 ? (
             <span className="cell-muted fk-no-target">
@@ -466,17 +465,17 @@ function ForeignKeySection({
             </span>
           ) : (
             <>
-              <select
-                value={targetIndex}
-                aria-label="Foreign key target"
-                onChange={(e) => setTargetIndex(Number(e.target.value))}
-              >
-                {targets.map((t, i) => (
-                  <option key={`${t.table}.${t.column}`} value={i}>
-                    {t.table}.{t.column}
-                  </option>
-                ))}
-              </select>
+              <Select
+                className="uiselect--mono"
+                menuClassName="uiselect-menu--mono"
+                value={Math.min(targetIndex, targets.length - 1)}
+                options={targets.map((t, i) => ({
+                  value: i,
+                  label: `${t.table}.${t.column}`,
+                }))}
+                ariaLabel="Foreign key target"
+                onChange={setTargetIndex}
+              />
               <button type="submit" className="btn" disabled={duplicate}>
                 Add foreign key
               </button>

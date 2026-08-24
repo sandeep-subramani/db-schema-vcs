@@ -132,3 +132,78 @@ export function formatPrimaryKey(pk: string[] | undefined): string {
   if (pk === undefined || pk.length === 0) return "none";
   return pk.length === 1 ? pk[0]! : `(${pk.join(", ")})`;
 }
+
+// --- merge timeline ------------------------------------------------------
+
+/** One rung of the merge timeline: what each side did to one table.
+ *  A table only one side touched has a null on the other. */
+export interface MergeTimelineRow {
+  /** Table name, as of the branch point where the sides can disagree. */
+  name: string;
+  ours: TableCard | null;
+  theirs: TableCard | null;
+  /** Conflict groups touching this table — empty when there are none.
+   *  Ids, not a flag, so the view can tell a conflict that is still
+   *  open from one the user has already picked a side for. */
+  conflictIds: string[];
+}
+
+/** Every table name a single change speaks about. A table rename names
+ *  two, since the card may be keyed by either end of it. */
+function tablesOf(change: SchemaChange): string[] {
+  switch (change.kind) {
+    case "table-added":
+      return [change.table.name];
+    case "table-dropped":
+      return [change.name];
+    case "table-renamed":
+      return [change.from, change.to];
+    default:
+      return [change.table];
+  }
+}
+
+/** Zip two sides' cards into timeline rows: same table = same rung, so
+ *  a disagreement reads across one line instead of down two columns.
+ *  Order follows the two card lists in step (ours first at each index),
+ *  which keeps each side's own diff order intact. */
+export function buildMergeTimeline(
+  ours: TableCard[],
+  theirs: TableCard[],
+  conflicts: readonly { id: string; ours: SchemaChange[]; theirs: SchemaChange[] }[],
+): MergeTimelineRow[] {
+  const conflictsByTable = new Map<string, string[]>();
+  for (const conflict of conflicts) {
+    for (const change of [...conflict.ours, ...conflict.theirs]) {
+      for (const table of tablesOf(change)) {
+        const ids = conflictsByTable.get(table) ?? [];
+        if (!ids.includes(conflict.id)) ids.push(conflict.id);
+        conflictsByTable.set(table, ids);
+      }
+    }
+  }
+
+  const oursByName = new Map(ours.map((card) => [card.name, card]));
+  const theirsByName = new Map(theirs.map((card) => [card.name, card]));
+
+  const rows: MergeTimelineRow[] = [];
+  const placed = new Set<string>();
+  function place(name: string) {
+    if (placed.has(name)) return;
+    placed.add(name);
+    rows.push({
+      name,
+      ours: oursByName.get(name) ?? null,
+      theirs: theirsByName.get(name) ?? null,
+      conflictIds: conflictsByTable.get(name) ?? [],
+    });
+  }
+
+  for (let i = 0; i < Math.max(ours.length, theirs.length); i++) {
+    const mine = ours[i];
+    const yours = theirs[i];
+    if (mine) place(mine.name);
+    if (yours) place(yours.name);
+  }
+  return rows;
+}

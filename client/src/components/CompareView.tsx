@@ -5,6 +5,7 @@ import { timeAgo } from "../time.ts";
 import { areBranchesRelated } from "../diff/related.ts";
 import { buildDiffCards } from "../diff/view-model.ts";
 import { DiffCardGrid } from "./DiffCardGrid.tsx";
+import { Select } from "./Select.tsx";
 import {
   describeRenameQuestion,
   RenameQuestionsBanner,
@@ -27,10 +28,13 @@ export function CompareView({
   branches,
   initialBranchId,
   onClose,
+  backLabel = "Editor",
 }: {
   branches: Branch[];
   initialBranchId: number;
   onClose: () => void;
+  /** Where onClose lands — the repo home opens this view too. */
+  backLabel?: string | null;
 }) {
   const [from, setFrom] = useState<SideSelection>({
     branchId: initialBranchId,
@@ -211,9 +215,14 @@ export function CompareView({
   return (
     <main className="diff-view">
       <div className="diff-head">
-        <button type="button" className="btn" onClick={onClose}>
-          ← Editor
-        </button>
+        {/* Only when closing lands somewhere the top bar can't take
+            you: the editor or the entry doors. Getting to the repo
+            home is the top bar's job alone. */}
+        {backLabel !== null && (
+          <button type="button" className="btn" onClick={onClose}>
+            ← {backLabel}
+          </button>
+        )}
         <div className="diff-title">
           <h2>Compare versions</h2>
           <p>Any commit against any commit, across branches.</p>
@@ -227,7 +236,13 @@ export function CompareView({
           commits={commitLists[from.branchId]}
           onChange={setFrom}
         />
-        <button type="button" className="btn compare-swap" onClick={swap} title="Swap sides">
+        <button
+          type="button"
+          className="btn compare-swap"
+          onClick={swap}
+          title="Swap sides"
+          aria-label="Swap sides"
+        >
           ⇄
         </button>
         <SidePicker
@@ -257,46 +272,41 @@ function SidePicker({
   commits: CommitMeta[] | undefined;
   onChange: (next: SideSelection) => void;
 }) {
+  // FROM / TO names the whole side, so the two field labels underneath
+  // would only repeat it — they live on as each dropdown's aria-label.
   return (
     <div className="compare-group">
       <span className="compare-group-label">{label}</span>
-      <label className="compare-field">
-        Branch
-        <select
-          value={selection.branchId}
-          onChange={(e) =>
-            onChange({ branchId: Number(e.target.value), commitId: null })
-          }
-        >
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="compare-field">
-        Commit
-        <select
-          value={selection.commitId ?? ""}
-          disabled={!commits || commits.length === 0}
-          onChange={(e) =>
-            onChange({ ...selection, commitId: Number(e.target.value) })
-          }
-        >
-          {!commits ? (
-            <option value="">loading…</option>
-          ) : commits.length === 0 ? (
-            <option value="">no commits yet</option>
-          ) : (
-            commits.map((commit) => (
-              <option key={commit.id} value={commit.id}>
-                {commit.message} · {commit.author} · {timeAgo(commit.createdAt)}
-              </option>
-            ))
-          )}
-        </select>
-      </label>
+      <div className="compare-selects">
+        <div className="compare-field compare-field--branch">
+          <Select
+            className="uiselect--mono"
+            menuClassName="uiselect-menu--mono"
+            value={selection.branchId}
+            options={branches.map((branch) => ({
+              value: branch.id,
+              label: branch.name,
+            }))}
+            ariaLabel={`${label} branch`}
+            onChange={(branchId) => onChange({ branchId, commitId: null })}
+          />
+        </div>
+        <div className="compare-field compare-field--commit">
+          <Select
+            value={selection.commitId ?? ""}
+            disabled={!commits || commits.length === 0}
+            placeholder={commits ? "no commits yet" : "loading…"}
+            options={(commits ?? []).map((commit) => ({
+              value: commit.id,
+              label: `${commit.message} · ${commit.author} · ${timeAgo(commit.createdAt)}`,
+            }))}
+            ariaLabel={`${label} commit`}
+            onChange={(commitId) =>
+              onChange({ ...selection, commitId: Number(commitId) })
+            }
+          />
+        </div>
+      </div>
     </div>
   );
 }
