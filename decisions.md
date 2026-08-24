@@ -1099,3 +1099,55 @@ materialized.
 
 **What I deliberately cut:** Any charset rule, and any migration of
 existing names.
+
+---
+
+## 28. A commit that changes nothing is refused — server rule, merge commits exempt
+
+**The decision:** A commit is rejected (400, nothing written) when the
+snapshot it carries records the same schema as the branch's last
+commit — or, on a first commit, no schema at all. "Same schema" means
+the engine's own `diffSchemas` reports zero changes, so the rule is
+exactly the one the diff view draws: no commit can land in history and
+then show "No schema changes" when opened. Merge commits are the one
+exception: a commit carrying a merge marker is always allowed, even
+when the merged result matches what the branch already had. The
+toolbar's Commit… button greys out under the same rule, computed with
+the same engine call on the client, with a hint saying which case it
+is ("nothing to commit yet" vs "matches the last commit").
+
+This supersedes what #25 deliberately cut: the API no longer accepts
+an empty first commit. #25's other half survives — dropping every
+table on a branch that has commits is a real change and still commits.
+
+**The alternatives:** Raw JSON equality instead of the engine diff —
+rejected: per #18 a pure reorder isn't a change, so a reorder-only
+commit would slip through and land in exactly the dead history entry
+this fixes. Client-only gating (the button alone) — rejected: the API
+would still mint empty commits for any other caller, hiding the bug
+rather than fixing it. Server-only — rejected: you'd type a commit
+message before being told no. Blocking empty merge commits too —
+rejected: that commit is what advances the merged branch's stored base
+(#20), so refusing it would strand a no-op merge with no way to record
+it, and the in-memory marker dies on reload.
+
+**The reasoning:** History is the product here. An entry that opens on
+"No schema changes" is a lie about what happened on the branch, and it
+poisons the neighbours — a diff is computed against its predecessor,
+so no-op commits make the previous real change harder to find. The
+check goes first in the commit transaction, before the staleness check
+and the working save, so a refused commit writes literally nothing:
+the working state is left where it was and Save still works normally.
+
+**The accepted tradeoffs:** The Commit button now needs the tip
+commit's schema, which the branch load didn't fetch — one extra
+request per branch load (the commit list carries metadata only). If
+that fetch fails the button stays live and the server answers instead,
+so the failure mode is a slightly worse message, not a broken button.
+A reorder-only edit can be saved but never committed, which follows
+from #18 and is the same answer the diff view already gives.
+
+**What I deliberately cut:** No "commit anyway" escape hatch, and no
+prompt offering one — git's `--allow-empty` exists for markers and
+hooks that this product has no equivalent of. No backfill: empty
+commits already in a history stay there.

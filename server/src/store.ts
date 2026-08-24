@@ -9,7 +9,7 @@
 // happens at the API boundary with the engine's validateSchema.
 
 import type pg from "pg";
-import type { Schema } from "engine";
+import { diffSchemas, type Schema } from "engine";
 
 export interface Repo {
   id: number;
@@ -65,7 +65,12 @@ export type CommitResult =
   | { ok: false; conflict: SaveConflict }
   /** The commit carried a merge marker that doesn't check out — see
    *  commitWorking. Nothing was written. */
-  | { ok: false; invalidMerge: true };
+  | { ok: false; invalidMerge: true }
+  /** The snapshot records the same schema as the branch's last commit
+   *  (or, on a first commit, no schema at all), so the commit would
+   *  land in history with nothing to show. Nothing was written.
+   *  `hadTip` separates the two cases for the message. */
+  | { ok: false; empty: true; hadTip: boolean };
 
 /**
  * Bookkeeping a merge commit carries (decisions.md #20): which branch
@@ -445,6 +450,13 @@ function rowToCommit(row: {
  * commit need not still be the source's newest one: if the source
  * gained commits since the merge was computed, what was merged is
  * still exactly that older tip, and the base must say so.
+ *
+ * A commit that changes nothing is refused (decisions.md #28): the
+ * incoming snapshot is diffed against the branch's last commit first,
+ * and an empty diff means nothing is written at all — not even the
+ * working save. Merge commits are the one exception: their job is the
+ * bookkeeping above, which still has to happen when the merged result
+ * matches what the branch already had.
  */
 export async function commitWorking(
   pool: pg.Pool,
@@ -458,6 +470,25 @@ export async function commitWorking(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    if (!merge) {
+      // Compared with the engine's diff, not raw JSON equality, so the
+      // rule is exactly the one the diff view shows: if that view
+      // would say "no schema changes", this is not a commit. Missing
+      // tip = first commit, which is measured against nothing.
+      const tip = await client.query(
+        `SELECT c.snapshot FROM commits c
+         JOIN branches b ON b.id = c.branch_id
+         JOIN repos r ON r.id = b.repo_id
+         WHERE c.branch_id = $1 AND ${IS_MEMBER("$2")}
+         ORDER BY c.id DESC LIMIT 1`,
+        [branchId, username],
+      );
+      const previous: Schema = tip.rows[0]?.snapshot ?? { tables: [] };
+      if (diffSchemas(previous, snapshot).changes.length === 0) {
+        await client.query("ROLLBACK");
+        return { ok: false, empty: true, hadTip: tip.rowCount === 1 };
+      }
+    }
     const saved = await saveWorkingOnClient(
       client,
       branchId,

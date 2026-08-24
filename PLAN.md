@@ -101,6 +101,16 @@ scope change gets a decisions.md entry.
       (#23), Postgres type audit + auto-number family + FK twin rule
       (#24), splitter + translator + skip-list preview dialog, gate
       door enabled; 205 tests incl. pg_dump fixture
+- [x] Empty commits refused (decisions.md #28) — a branch whose schema
+      hadn't changed could still be committed, and the entry then
+      opened on "No schema changes". Now the server diffs the incoming
+      snapshot against the branch tip (engine `diffSchemas`, so a pure
+      reorder counts as unchanged per #18) and refuses with 400 before
+      writing anything; the Commit… button greys out under the same
+      rule, with a hint naming which case it is. Merge commits are
+      exempt — they carry the base advance of #20. Supersedes #25's
+      "UI guard only" cut: an empty first commit is now refused by the
+      API too
 - [ ] Stretch roadmap, in priority order (decisions.md #3, #4):
       1. migration SQL output (decisions.md #6 — stretch only)
       2. column defaults, indexes (~2–4h each, additive; single-col
