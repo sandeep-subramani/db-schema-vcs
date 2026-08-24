@@ -244,7 +244,7 @@ function rowToBranch(row: {
 }
 
 // The last save on each branch rides along with the branch list: the
-// columns are on the row already, so "updated 3h ago by sandeep" per
+// columns are on the row already, so "updated 3h ago by hairy-morth" per
 // branch costs nothing beyond naming them here.
 const BRANCH_SELECT = `
   SELECT b.id, b.repo_id, b.name, b.parent_branch_id, b.created_at,

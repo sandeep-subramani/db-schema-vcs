@@ -382,7 +382,7 @@ conflict cards.
 
 ## Day 4 — gate polish: Commit… now waits for a schema
 
-Follow-up to the audit, per Sandeep's picks: on a brand-new branch
+Follow-up to the audit, per Owner's picks: on a brand-new branch
 (no commits, empty schema) the Commit… button is now disabled with a
 hint, matching how Review changes and Compare… already behave. Before
 this, clicking it would commit a zero-table schema — its only visible
@@ -779,7 +779,7 @@ half-transparent amber fill, amber text and an amber dot. Same
 "needs you" amber as the blocked merge status, so the app has one
 colour for "there is something here you have to deal with".
 
-The clean state (`Saved 3h ago by sandeep`) stays plain muted text —
+The clean state (`Saved 3h ago by hairy-morth`) stays plain muted text —
 nothing is at risk there, so it shouldn't compete.
 
 ### The identity menu — two navigations that follow you around
@@ -1341,3 +1341,76 @@ the skip; [TableEditor.tsx](client/src/components/TableEditor.tsx) — the
 one call site; [edits.test.ts](client/src/schema/edits.test.ts) — the
 existing target tests rephrased around a starting column, plus three new
 ones. No engine, server or API change.
+
+## Ship-day verification: the deploy, a fresh clone, and a docs pass
+
+Day 5's job wasn't to build anything — it was to find out whether the
+thing we built is actually shippable, and to make the documents tell
+the truth about it.
+
+**The deploy was the real unknown.** Merging the redesign to `main`
+triggered a Render build that had never run there, and the redesign
+brought something new with it: the Zoho Puvi webfont, pulled at
+runtime from Zoho's own CDN rather than bundled. If that CDN were
+blocked or slow from Render, every screen would quietly fall back to
+system fonts and the whole restyle would look wrong — the kind of
+failure that doesn't show up in any test.
+
+It's fine. The two asset filenames the live site serves are
+byte-identical to a production build of `main` on this machine, which
+is a stronger check than "the site loads": Vite puts a hash of the
+file's contents in its name, so matching names mean matching bytes,
+and the deploy is provably the merge commit rather than something
+older. All four font files answer with the header a cross-origin font
+needs (`access-control-allow-origin: *`) and a two-month cache, and
+the browser confirms three weights actually loaded and that the page's
+headings are drawn in Puvi, not a fallback.
+
+**Then the whole product, once, on the live site.** Claim a username,
+create a repo, land on the entry doors, load the example schema,
+commit, branch, retype the same column differently on each side,
+merge, hit the conflict, pick a side, apply, commit the merge. All of
+it worked against the real database, and three fixes from the last few
+commits were visible doing their jobs: the foreign-key picker refusing
+to offer `users.id` to itself, `Commit…` greying out because the
+schema matched the last commit, and `Undo` absent on a diff. No
+console errors or warnings anywhere in the session.
+
+**A fresh clone one-shots.** Cloned from GitHub into a scratch
+directory, `npm install`, then all three checks — 217 tests, typecheck,
+lint — clean, and a production build succeeds. Nothing in the repo
+depends on state that only exists on this machine.
+
+**One thing the fresh clone did catch, in the README rather than the
+code.** The setup section said "No database needed to run", which is
+true in a way that's useless: the server does boot without
+`DATABASE_URL`, and `/api/health` cheerfully reports `ok`, but every
+route that touches data answers 503. You get a page that looks alive
+and can't do a single thing. `.env.example` had always been honest
+about this; the README hadn't. It now says the app needs Postgres,
+gives the four commands that provide it, and notes that the server
+suite needs the test database while the engine and client suites don't.
+
+The README's status paragraph also still claimed the redesign was "in
+progress on `ui-redesign`", and its architecture sketch listed the
+three packages without mentioning the most distinctive thing about the
+design: diff and merge run in the browser, not on the server. That's
+the first question anyone reading the code asks, so it's now stated
+up front, next to the other choice that explains the shape — every
+version is stored as one whole snapshot, so comparing any two versions
+is two reads and a pure function.
+
+**The decision log was read end to end** — all 32 entries — and the
+findings reported rather than edited, since the log is the product
+owner's to change. The short version: the entries themselves hold up,
+and one predicted threshold was checked against the code and still
+holds (#29 warned that a third view-state flag in `RepoScreen` would
+mean it needs a real view union; no third flag was ever added). What's
+missing is history, not honesty — the UI redesign that entries #30,
+#31 and #32 all refer to has no entry of its own, and a few small
+approved logic changes during the redesign went unlogged. Those gaps
+are recorded here and were raised at the time; whether they become
+entries is the owner's call.
+
+Files: [README.md](README.md) — status, setup and architecture;
+[PLAN.md](PLAN.md) — day-5 ticks. No source change.

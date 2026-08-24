@@ -124,12 +124,44 @@ scope change gets a decisions.md entry.
          — engine reused, cost is base-advance bookkeeping + tests
 
 ## Day 5 — ship
-- [ ] README: setup that works in one shot, short architecture sketch
-- [ ] decisions.md full read-through: specific, honest, complete
-- [ ] Fresh-clone setup test + smoke test of the deployed URL
+- [x] README: setup that works in one shot, short architecture sketch
+      — three defects fixed. Status still said the redesign was in
+      progress on `ui-redesign`; "No database needed to run" was true
+      but useless (the server boots, `/api/health` says `ok`, and every
+      data route 503s), so setup now names Postgres and gives the
+      commands; the architecture sketch now leads with the two choices
+      that explain the shape — diff and merge run in the browser
+      (decisions #19, #22) and every version is one whole snapshot (#12)
+- [x] decisions.md full read-through: specific, honest, complete —
+      all 32 entries read, findings reported, no edits made (the log is
+      the owner's to change; entries declined for now). The entries hold
+      up, and #29's predicted threshold was checked against the code and
+      still holds — no third view-state flag was ever added to
+      `RepoScreen`. Gaps raised: the UI redesign that #30/#31/#32 all
+      refer to has no entry of its own; `buildMergeTimeline`, the
+      identity-menu move and the clickable latest-commit card went
+      unlogged; #25's closing line ("the API will still accept an empty
+      first commit") is false since #28 and carries no forward pointer,
+      and #27's dropped-panels list was partly reversed by the
+      latest-commit card; and the "first/second logic change" vs "step
+      past JSX-and-CSS" counts in #30–#32 contradict each other and
+      PLAN's own "only step past JSX-and-CSS" above
+- [x] Fresh-clone setup test + smoke test of the deployed URL — clone
+      from GitHub, `npm install`, 217 tests + typecheck + lint clean,
+      production build succeeds. The live site's two asset filenames are
+      byte-identical to a local build of `main`, so the deploy is
+      provably the merge commit; all four Zoho Puvi woff2 files answer
+      200 with `access-control-allow-origin: *`, and the browser
+      confirms the headings are drawn in Puvi, not a fallback. Drove the
+      whole product live — claim identity, create repo, entry doors,
+      example schema, commit, branch, divergent retype on each side,
+      merge, conflict, pick a side, apply, merge commit — plus the
+      history rail, a commit diff and the light theme. Zero console
+      errors or warnings. Left behind: repo `deploy-smoke` under user
+      `smoke-day5` on the live database (no delete-repo endpoint, #27)
 - [ ] Buffer for whatever slipped
 
-## UI redesign (branch ui-redesign, view by view)
+## UI redesign (merged to main, was branch ui-redesign, view by view)
 - [x] Global look: token flip (violet accent, near-black ground,
       magenta branch color, dark rounded app frame), Space Grotesk
       webfont, primary buttons as solid fills

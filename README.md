@@ -12,16 +12,16 @@ first load after idle can take ~50s to wake.
 editor, JSON and Postgres-SQL import, branching, commit history,
 diff (including rename detection), three-way merge with pick-a-side
 conflict resolution, and an arbitrary any-commit-vs-any-commit
-compare. A full UI redesign is in progress on `ui-redesign`.
-Remaining: stretch items (migration SQL output, column defaults and
-indexes) and ship polish.
+compare. The view-by-view UI redesign is merged. Remaining: stretch
+items, in priority order — migration SQL output, column defaults and
+indexes, composite unique constraints.
 
 - Decision log and tradeoffs: [decisions.md](./decisions.md)
 - Built with Claude Code; every change is reviewed before commit.
 
 ## Setup
 
-Requires Node ≥ 20.
+Requires Node ≥ 20 and Postgres.
 
 ```sh
 npm install
@@ -29,9 +29,24 @@ npm run dev
 ```
 
 Client on http://localhost:5173, API on :3000 (proxied — no CORS).
-No database needed to run; to use one, copy `.env.example` to `.env`
-and set `DATABASE_URL`. Checks: `npm test`, `npm run typecheck`,
-`npm run lint`.
+
+The app needs a database to do anything. Without `DATABASE_URL` the
+server still boots and `/api/health` reports `db: "not_configured"`,
+but every data route answers 503 — you get a page you can't use. So:
+
+```sh
+brew install postgresql@17 && brew services start postgresql@17
+/opt/homebrew/opt/postgresql@17/bin/createdb schema_vcs
+/opt/homebrew/opt/postgresql@17/bin/createdb schema_vcs_test
+cp .env.example .env          # DATABASE_URL is already filled in
+```
+
+The app's own tables are created at server boot by a migration
+runner, so there's no migrate step to run by hand.
+
+Checks: `npm test`, `npm run typecheck`, `npm run lint`. The engine
+and client suites are self-contained; the server suite needs
+`schema_vcs_test` to exist (it wipes and re-migrates it per run).
 
 ## Architecture
 
@@ -42,3 +57,22 @@ npm workspaces, three packages:
 - `server/` — Express 5 API; in production also serves the built
   client (one host, one deploy)
 - `client/` — Vite + React UI
+
+Two choices explain most of the shape:
+
+**Diff and merge run in the browser.** The engine ships in the
+client bundle, so answering a rename question or picking a side in a
+conflict re-runs the computation instantly with no round trip. The
+server's job is storage plus two small things: one read that hands
+a merge everything it needs in a single request, and a merge marker
+on the commit endpoint that advances the merged branch's base inside
+the same transaction as the commit (decisions.md #19, #22).
+
+**Every version is a whole snapshot**, stored as one JSONB value in
+one row — no delta chains to replay, so diffing any two versions is
+two reads and a pure function (decisions.md #12).
+
+The engine's tests are the ones that matter: `apply(diff(A,B), A)`
+equals `B`, merges of non-overlapping changes equal both changes
+applied, and conflict detection gives the same answer regardless of
+branch order.

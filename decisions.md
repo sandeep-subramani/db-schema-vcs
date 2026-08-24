@@ -1087,7 +1087,7 @@ display labels, rendered through React's escaping, so looser rules
 cost nothing.
 
 **The alternatives:** Restricting to the username charset — rejected:
-blocks reasonable names ("Q3 warehouse", "sandeep's fork") for no
+blocks reasonable names ("Q3 warehouse", "hairy-morth's fork") for no
 technical gain. A minimal trim-whitespace rule — considered, skipped:
 not worth a special case on day 4; revisit if a stray-space name ever
 confuses anyone.
@@ -1121,7 +1121,7 @@ so nothing on screen is a stub.
 Shipped: repo identity with a shared/member-count badge; the branch's
 latest commit as a headline; a table inventory (name + shape — column
 count, primary key, foreign-key count); branch cards with commit
-count, `updated 3h ago by sandeep`, default/current tags, and a switch
+count, `updated 3h ago by hairy-morth`, default/current tags, and a switch
 button; a rail with tables/columns/foreign-keys/commits, the save
 state, the member list, and import/export.
 

@@ -110,7 +110,7 @@ export function UsernameGate({ onClaimed }: { onClaimed: (username: string) => v
           id="gate-username"
           autoFocus
           value={value}
-          placeholder="e.g. sandeep"
+          placeholder="e.g. hairy-morth"
           onChange={(e) => {
             setValue(e.target.value);
             setError(null);
