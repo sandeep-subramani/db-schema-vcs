@@ -26,6 +26,10 @@ export interface Branch {
   parentBranchId: number | null;
   commitCount: number;
   createdAt: string;
+  /** Who last saved this branch's working state, and when — null until
+   *  the first save. Read straight off the branch row. */
+  savedBy: string | null;
+  savedAt: string | null;
 }
 
 export interface WorkingState {
@@ -224,6 +228,8 @@ function rowToBranch(row: {
   parent_branch_id: number | null;
   commit_count: string | number;
   created_at: Date;
+  working_saved_by: string | null;
+  working_saved_at: Date | null;
 }): Branch {
   return {
     id: row.id,
@@ -232,11 +238,17 @@ function rowToBranch(row: {
     parentBranchId: row.parent_branch_id,
     commitCount: Number(row.commit_count),
     createdAt: row.created_at.toISOString(),
+    savedBy: row.working_saved_by,
+    savedAt: row.working_saved_at ? row.working_saved_at.toISOString() : null,
   };
 }
 
+// The last save on each branch rides along with the branch list: the
+// columns are on the row already, so "updated 3h ago by sandeep" per
+// branch costs nothing beyond naming them here.
 const BRANCH_SELECT = `
   SELECT b.id, b.repo_id, b.name, b.parent_branch_id, b.created_at,
+         b.working_saved_by, b.working_saved_at,
          (SELECT count(*) FROM commits c WHERE c.branch_id = b.id) AS commit_count
   FROM branches b JOIN repos r ON r.id = b.repo_id`;
 
@@ -304,7 +316,8 @@ export async function createBranch(
       `INSERT INTO branches (repo_id, name, parent_branch_id, base_snapshot,
          working_snapshot, working_saved_by, working_saved_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, repo_id, name, parent_branch_id, created_at, 1 AS commit_count`,
+       RETURNING id, repo_id, name, parent_branch_id, created_at,
+         working_saved_by, working_saved_at, 1 AS commit_count`,
       [
         repoId,
         name,
