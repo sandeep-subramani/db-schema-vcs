@@ -1222,3 +1222,122 @@ usual accent link colour sinks into the banner's accent-tinted ground.
 No engine, server or API change, and no test change: the suites cover
 the engine, the server and the pure client helpers, and this is view
 state. Decision recorded as decisions.md #31.
+
+## Pre-merge audit of the UI-redesign branch
+
+Before merging `ui-redesign` into `main`, the whole branch got a full
+sweep: the three test suites, typecheck, lint, a production build, the
+production server serving that build, every API route driven by hand
+including its error paths, and every screen driven in a browser in both
+themes at 1440px, 720px, 600px and 420px wide.
+
+The suites, typecheck and lint were already clean and stayed clean —
+214 tests across engine, server and client. The API came back correct
+on every probe: bad ids, oversized names, malformed bodies, non-members
+reading and writing other people's repos, bogus merge markers, and the
+new empty-commit rule (including the case where a commit is refused and
+must therefore *not* leave a working save behind — verified by reading
+the row back afterwards). Nothing needed fixing on the server.
+
+Four things were wrong in the browser, all presentation, all fixed:
+
+**The dropdown sheet was measured in the wrong box.** `Select.tsx`
+works out how much room is left in the viewport, sets that as the
+menu's `max-height`, then positions the menu exactly that far above or
+below its trigger. That arithmetic assumes `max-height` *is* the
+rendered height — but the sheet was `content-box`, so its padding and
+border added about 12px on top. A menu clamped by the bottom of the
+window overhung it, and a menu that flipped upward sat 6px *over* its
+own trigger instead of 6px under it. One line: `box-sizing: border-box`
+on `.uiselect-menu`. Measured before and after — a clamped drop-down
+overhung by 3.6px and now clears by 10px; a drop-up overlapped the
+trigger and now leaves the intended 6px gap.
+
+**The un-chosen side of a merge conflict was unreadable.** Its CSS
+comment says "the road not taken stays legible but recedes", but it
+receded with `opacity: 0.45` on top of a 12%-tinted fill, which lands
+at about 2:1 against its own background — and 0.45 is the exact opacity
+this app spends on *disabled* buttons everywhere else. So the one
+control you'd click to change your mind looked switched off and couldn't
+be read. It now recedes by losing its fill and its weight instead of by
+going transparent: 6.3:1 in both themes, no borrowed disabled look.
+
+**The repo-error screen had no top bar**, so no theme picker — against
+the standing rule that every page carries one — and no way to switch
+user. It now renders the same chrome as every other screen, with the
+app name as static text (there is no repo to go home to) and both exits
+wired straight through, since nothing was loaded that could be dirty.
+
+**The table name painted over its column-count chip** in a narrow
+editor column. The name field is `field-sizing: content` with
+`min-width: 3rem` and `max-width: 100%` — but it was `content-box`, so
+the 3rem floor rendered at nearly 4rem, and `max-width` can never
+rescue that because `min-width` always wins in CSS. The input therefore
+refused to shrink past ~62px while its flex parent shrank to 37px, and
+overflowed by 15px across the chip. Fixed by making the field
+`border-box` so both limits mean what they say, plus `flex-wrap` on the
+title row so the chip drops below the name rather than sharing a strip
+with it. Wide layouts are unchanged; a deliberately absurd table name
+now wraps the chip instead of overflowing the page.
+
+Everything else held up. Zero JavaScript errors and zero React warnings
+across the entire session; the only console noise was the 4xx responses
+from error paths that were being tested on purpose. No horizontal page
+overflow at any width — the columns table scrolls inside its own box,
+which is what should happen. Contrast was swept over every visible text
+run in both themes: after the fixes, dark is clean, and light leaves two
+marginal items (the amber "Unsaved changes" pill at 4.18:1 and the small
+count badges at 4.45:1, both against a 4.5 bar) that are palette calls
+rather than defects.
+
+Files: [index.css](client/src/index.css) and
+[RepoScreen.tsx](client/src/components/RepoScreen.tsx). No engine,
+server, API or component-logic change, so no test changes.
+
+## The foreign-key picker no longer offers a column itself
+
+Two follow-ups from the audit above.
+
+**A column can't be its own foreign key any more.** On `users` the FK
+form offered `id → users.id`. That schema is one the engine validator
+happily accepts — it only asks that the target exists, is unique on its
+own, and has a matching type, and a column trivially satisfies all
+three against itself. But as a *constraint* it says nothing: "every
+value in this column must exist in this column" is true of every row by
+definition. So it can't be caught by validation; the picker has to be
+the one that declines to offer it.
+
+The care needed here is that self-referencing foreign keys in general
+are perfectly ordinary — `employees.manager_id → employees.id`, the
+parent-id shape of any tree. Only the *exact same column* is
+meaningless. So the exclusion is one column, not one table.
+
+`validFkTargets` couldn't express that: it took a column *type*, which
+says nothing about where the key starts. It now takes the starting
+column itself — `{ table, column }` — and reads the type off it. That
+kills a second problem on the way: with the type passed separately, a
+caller could hand over a type that disagreed with the column it claimed
+to be for. Now there's one source of truth and nothing to keep in sync.
+An unknown starting column yields no targets rather than guessing.
+
+What you see: on `users`, starting from `id` now says "no valid target"
+with the same explanation it already gave for other dead ends, because
+`users.id` was the schema's only Unique ID column. On `reviews`,
+starting from `product_id` still offers `reviews.id` — same table,
+different column, a real constraint — while starting from `id` offers
+`products.id` and `orders.id` and no longer itself. Three new tests
+cover the exclusion, the same-table-different-column case (asserting the
+FK it produces still validates), and the unknown-column case.
+
+**CLAUDE.md's typeface rule matched the plan, not the code.** It still
+named Space Grotesk from Google Fonts; the app has been on Zoho Puvi
+from Zoho's CDN. The rule now records what's actually there, including
+why the `@font-face` block re-declares one family with real weights
+(Zoho ships a family per weight, all at `font-weight: normal`, which
+would have broken every weight value in index.css).
+
+Files: [edits.ts](client/src/schema/edits.ts) — the new signature and
+the skip; [TableEditor.tsx](client/src/components/TableEditor.tsx) — the
+one call site; [edits.test.ts](client/src/schema/edits.test.ts) — the
+existing target tests rephrased around a starting column, plus three new
+ones. No engine, server or API change.

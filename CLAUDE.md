@@ -24,8 +24,14 @@
     filled primary buttons). Style views with these tokens; don't
     reintroduce per-view palettes. Un-restyled views inheriting the
     new colors before their pass is expected.
-  - Space Grotesk (Google Fonts, loaded in client/index.html) is the
-    UI typeface; --font-mono stack unchanged.
+  - Zoho Puvi is the UI typeface (--font-ui); --font-mono stack
+    unchanged. It isn't on Google Fonts, so the @font-face rules at
+    the top of index.css pull the woff2 files from Zoho's CDN
+    (static.zohocdn.com, preconnected in client/index.html). Zoho
+    ships a separate family per weight, each at font-weight: normal;
+    we re-declare one family with real weights so the font-weight
+    values used across index.css keep working. This replaced Space
+    Grotesk, the pass-1 choice.
   - All the ref images may/may not come with the theme picker icon, 
     it shouldn't be skipped - each and every page should have it.
 

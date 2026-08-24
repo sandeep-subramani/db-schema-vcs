@@ -276,3 +276,35 @@ scope change gets a decisions.md entry.
       merge commit. Second logic change of the restyle (one handler
       that clears view flags, one conditional callback) — approved
       before the work; decisions.md #31
+- [x] Pre-merge audit of the whole branch. Ran the three suites (214
+      pass), typecheck, lint, a production build and the production
+      server serving it; drove every API route including its error
+      paths; drove every screen in both themes at 1440/720/600/420px.
+      Server came back clean everywhere, including the empty-commit
+      rule's rollback (a refused commit leaves no working save — read
+      the row back to confirm). Four presentation defects found and
+      fixed: the `Select` menu sheet was `content-box`, so the
+      viewport arithmetic that places it was ~12px out and a clamped
+      menu overhung the window while a drop-up covered its own
+      trigger; the un-chosen merge-conflict side rendered at ~2:1
+      contrast wearing the app's disabled opacity, on a control that
+      is still live; the repo-error screen had no top bar and so no
+      theme picker, against the standing rule; and the table-name
+      field's `min-width` under `content-box` made it overflow its
+      column-count chip by 15px in a narrow editor column. Zero JS
+      errors and zero React warnings across the session; no
+      horizontal page overflow at any width. Two light-theme contrast
+      items left as palette calls, not fixed: the amber "Unsaved
+      changes" pill (4.18:1) and the small count badges (4.45:1)
+- [x] Follow-ups from the audit. The FK picker offered a column itself
+      as a target (`users.id → users.id`) — valid to the engine (the
+      target exists, is unique on its own, types match) but a
+      constraint every row meets by definition, so validation can
+      never catch it and the picker had to. `validFkTargets` now takes
+      the starting column instead of a bare type, so it can exclude
+      that one column while still offering a *different* column of the
+      same table (`nodes.parent_id → nodes.id` is a real constraint),
+      and the type can no longer disagree with the column it's for. 3
+      new tests. Also corrected CLAUDE.md's typeface rule, which still
+      named Space Grotesk from Google Fonts — the app is on Zoho Puvi
+      from Zoho's CDN
