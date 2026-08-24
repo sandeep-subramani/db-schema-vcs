@@ -383,7 +383,9 @@ function ForeignKeySection({
   const chosen =
     findColumn(table, ownColumn) ??
     (table.columns.length > 0 ? table.columns[0] : undefined);
-  const targets = chosen ? validFkTargets(schema, chosen.type) : [];
+  const targets = chosen
+    ? validFkTargets(schema, { table: table.name, column: chosen.name })
+    : [];
   const [targetIndex, setTargetIndex] = useState(0);
   const target = targets[Math.min(targetIndex, Math.max(targets.length - 1, 0))];
 

@@ -328,19 +328,36 @@ export function removeForeignKey(
 }
 
 /**
- * Columns a new foreign key of the given type may point at: unique on
+ * Columns a new foreign key starting at `from` may point at: unique on
  * their own (single-column primary key, or marked unique) and of a
  * compatible type (same, or a whole number's auto-number twin) — the
  * same rule the engine validator enforces.
+ *
+ * `from` itself is never on the list. A column pointing at its own
+ * value is a constraint every row satisfies by definition, so it
+ * constrains nothing — the engine validator accepts it, which is
+ * exactly why the picker has to be the one to rule it out. Pointing at
+ * a *different* column of the same table is a real constraint (the
+ * parent-id shape of a tree), so those stay.
+ *
+ * The starting column carries the type, so there is no second argument
+ * that could disagree with it; an unknown `from` has no targets.
  */
 export function validFkTargets(
   schema: Schema,
-  type: ColumnType,
+  from: { table: string; column: string },
 ): { table: string; column: string }[] {
+  const owner = findTable(schema, from.table);
+  const fromColumn = owner && findColumn(owner, from.column);
+  if (!fromColumn) return [];
   const targets: { table: string; column: string }[] = [];
   for (const table of schema.tables) {
     for (const column of table.columns) {
-      if (fkTypesCompatible(column.type, type) && isUniqueOnOwn(table, column)) {
+      if (table.name === from.table && column.name === from.column) continue;
+      if (
+        fkTypesCompatible(column.type, fromColumn.type) &&
+        isUniqueOnOwn(table, column)
+      ) {
         targets.push({ table: table.name, column: column.name });
       }
     }
