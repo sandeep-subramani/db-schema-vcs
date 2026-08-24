@@ -8,6 +8,20 @@ conflict detection. Row data is out of scope — the schema itself
 **Live:** https://db-schema-vcs.onrender.com — free tier, so the
 first load after idle can take ~50s to wake.
 
+**Try it:** there is no password. The login page asks you to pick a
+username, and typing one *is* signing in. Sign in as **`explorer`** to
+land in an account that already has four repos, each parked in a
+different state so nothing has to be built first:
+
+| Repo | Opens on |
+|---|---|
+| `storefront` | A finished merge — commit history, per-commit diffs, cross-branch compare |
+| `analytics` | Two branches that retyped the same column differently — the merge opens on a live conflict |
+| `inventory` | A conflict-free merge still to walk: apply, review, commit |
+| `first-run` | No commits yet — the entry doors a brand-new repo opens on |
+
+Any other name starts you on an empty account instead.
+
 **Status:** feature-complete on committed scope — visual schema
 editor, JSON and Postgres-SQL import, branching, commit history,
 diff (including rename detection), three-way merge with pick-a-side
@@ -16,6 +30,8 @@ compare. The view-by-view UI redesign is merged. Remaining: stretch
 items, in priority order — migration SQL output, column defaults and
 indexes, composite unique constraints.
 
+- Reviewing this as a submission? Start at
+  [SUBMISSION.md](./SUBMISSION.md)
 - Decision log and tradeoffs: [decisions.md](./decisions.md)
 - Built with Claude Code; every change is reviewed before commit.
 

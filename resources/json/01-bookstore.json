@@ -1,0 +1,52 @@
+{
+  "tables": [
+    {
+      "name": "authors",
+      "columns": [
+        { "name": "id", "type": "auto-number", "nullable": false },
+        { "name": "name", "type": "text", "nullable": false, "maxLength": 120 },
+        { "name": "country", "type": "text", "nullable": true, "maxLength": 60 }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "name": "books",
+      "columns": [
+        { "name": "id", "type": "auto-number", "nullable": false },
+        { "name": "isbn", "type": "text", "nullable": false, "unique": true, "maxLength": 20 },
+        { "name": "title", "type": "text", "nullable": false, "maxLength": 200 },
+        { "name": "author_id", "type": "whole-number", "nullable": false },
+        { "name": "published_on", "type": "date", "nullable": true },
+        { "name": "price", "type": "decimal-number", "nullable": false }
+      ],
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "column": "author_id", "references": { "table": "authors", "column": "id" } }
+      ]
+    },
+    {
+      "name": "members",
+      "columns": [
+        { "name": "id", "type": "unique-id", "nullable": false },
+        { "name": "email", "type": "text", "nullable": false, "unique": true, "maxLength": 255 },
+        { "name": "display_name", "type": "text", "nullable": false, "maxLength": 100 },
+        { "name": "joined_at", "type": "date-time-tz", "nullable": false }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "name": "loans",
+      "columns": [
+        { "name": "book_id", "type": "whole-number", "nullable": false },
+        { "name": "member_id", "type": "unique-id", "nullable": false },
+        { "name": "borrowed_at", "type": "date-time", "nullable": false },
+        { "name": "returned_at", "type": "date-time", "nullable": true }
+      ],
+      "primaryKey": ["book_id", "member_id", "borrowed_at"],
+      "foreignKeys": [
+        { "column": "book_id", "references": { "table": "books", "column": "id" } },
+        { "column": "member_id", "references": { "table": "members", "column": "id" } }
+      ]
+    }
+  ]
+}

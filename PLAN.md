@@ -159,6 +159,23 @@ scope change gets a decisions.md entry.
       history rail, a commit diff and the light theme. Zero console
       errors or warnings. Left behind: repo `deploy-smoke` under user
       `smoke-day5` on the live database (no delete-repo endpoint, #27)
+- [x] Recruiter handover pack — `SUBMISSION.md` as the reviewer's entry
+      point (links, the ~50s cold start and password-free login that
+      otherwise read as bugs, a five-minute path, scope and cuts, what
+      the tests assert); `resources/` with nine sample import files,
+      one per feature, and a README whose stated outcomes were all
+      produced by running the real engine over them; a README "Try it"
+      section, since the live URL was landing people on a bare "Pick a
+      username" screen; and a live `explorer` account on the deployed
+      database with four repos staged so every view is reachable cold
+      (finished merge, live conflict, pending clean merge + populated
+      member list, and an empty repo that opens on the entry doors).
+      Built through the deployed API, not SQL — the database port
+      isn't reachable from this network, and the API route means the
+      fixture passed the same validation, empty-commit rule and merge
+      bookkeeping as real user data. Build and verify scripts in
+      `resources/tools/`; dry-run locally under a throwaway username
+      first, since there's no delete-repo endpoint (#27)
 - [ ] Buffer for whatever slipped
 
 ## UI redesign (merged to main, was branch ui-redesign, view by view)

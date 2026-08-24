@@ -1414,3 +1414,82 @@ entries is the owner's call.
 
 Files: [README.md](README.md) — status, setup and architecture;
 [PLAN.md](PLAN.md) — day-5 ticks. No source change.
+
+## Recruiter handover pack — sample imports and a live demo account
+
+Two things a stranger needs that the code itself can't provide: files
+to feed the app, and an account that already has something in it. Both
+now exist.
+
+**`resources/`** holds nine sample files, one per feature, and a
+README that says which feature each one is for and what you should
+see. Six JSON, three SQL. They aren't
+decorative — each was run through the real engine before its outcome
+was written down, and the numbers in the README are measured, not
+estimated: `sql/01-ecommerce.sql` imports 5 tables and 24 columns with
+an empty skip list; `sql/02-pg-dump-excerpt.sql` imports 3 tables and
+produces 15 skip lines; `sql/03-out-of-scope.sql` imports 3 and
+produces 23, covering every skip category the importer knows.
+
+Two of them are worth explaining because their shape isn't obvious.
+
+`json/04-broken.json` breaks the schema *semantically* only — a
+duplicate table, a primary key naming a column that doesn't exist, a
+foreign key pointing at a non-unique column, and so on. That is
+deliberate. `validateSchema` runs its structural pass first and only
+reaches the semantic checks when the structure is completely clean, so
+slipping in a misspelled field name would have hidden the seven
+interesting relational errors behind one boring typo. As written, the
+gate refuses with all eight errors at once, which is the thing worth
+showing.
+
+`json/02-…-renamed.json` and `json/03-…-ambiguous.json` are the two
+halves of rename detection, and they were tuned against the actual
+thresholds in `diff.ts` rather than guessed. `members` → `memberships`
+scores 0.64, above the auto-match bar, so the engine just reports it as
+a rename. `authors.country` → `country_code` scores 0.58, below it, so
+the engine refuses to guess and asks. Same feature, two behaviours, one
+file each.
+
+**A live `explorer` account** now exists on the deployed database, with
+four repos left in four different states, so every view is reachable
+without building anything first: `storefront` is a finished merge with
+history to browse, `analytics` opens straight into a live conflict,
+`inventory` has a clean merge still waiting to be walked (and a second
+member, so the Share dialog isn't empty), and `first-run` has no
+commits at all, so it opens on the entry doors.
+
+It was built through the deployed HTTP API rather than by writing SQL,
+for two reasons. The office network can't reach the database directly —
+port 5432 times out — and going through the API means the fixture
+passed the same validation, the same empty-commit rule and the same
+merge bookkeeping as anything a real user creates, so it can't be in a
+state the app itself would never produce. The build script and a
+verifier live in `resources/tools/`; the verifier reports, per branch,
+whether the working state still equals the tip (nothing should open
+dirty) and what the merge view would say. Both were dry-run against a
+local server under a throwaway username before production was touched,
+and the production result matches the dry run line for line.
+
+One sharp edge, recorded so it isn't rediscovered: `inventory`'s
+pending merge is one-shot. Once applied, `main`'s working state no
+longer equals its tip and the merge view refuses with "main has
+uncommitted work". There's no discard button, and no delete-repo
+endpoint either (decisions #27), so re-arming means a working-state
+reset through the API.
+
+**`SUBMISSION.md`** is the reviewer's entry point, added so the email
+carrying this work could stay short: the links, the two things that
+otherwise look like bugs (a ~50s cold start on Render's free tier, and
+a login page with no password), a five-minute path through the four
+demo repos, how the work was scoped and what was deliberately cut, and
+what the tests actually assert. Everything a reviewer needs is in the
+repo rather than in a mail thread they'd have to scroll back through.
+
+Files: [SUBMISSION.md](SUBMISSION.md) — new, the entry point;
+[README.md](README.md) — a "Try it" section, since the live URL was
+landing people on a bare "Pick a username" screen with no hint that
+`explorer` is the interesting door; [eslint.config.js](eslint.config.js)
+— `resources/` ignored, as sample and tooling material rather than app
+source; [PLAN.md](PLAN.md) — day-5 entry. No source change; the app
+itself is untouched.
