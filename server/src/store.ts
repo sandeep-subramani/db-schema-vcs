@@ -9,7 +9,7 @@
 // happens at the API boundary with the engine's validateSchema.
 
 import type pg from "pg";
-import type { Schema } from "engine";
+import { diffSchemas, type Schema } from "engine";
 
 export interface Repo {
   id: number;
@@ -26,6 +26,10 @@ export interface Branch {
   parentBranchId: number | null;
   commitCount: number;
   createdAt: string;
+  /** Who last saved this branch's working state, and when — null until
+   *  the first save. Read straight off the branch row. */
+  savedBy: string | null;
+  savedAt: string | null;
 }
 
 export interface WorkingState {
@@ -65,7 +69,12 @@ export type CommitResult =
   | { ok: false; conflict: SaveConflict }
   /** The commit carried a merge marker that doesn't check out — see
    *  commitWorking. Nothing was written. */
-  | { ok: false; invalidMerge: true };
+  | { ok: false; invalidMerge: true }
+  /** The snapshot records the same schema as the branch's last commit
+   *  (or, on a first commit, no schema at all), so the commit would
+   *  land in history with nothing to show. Nothing was written.
+   *  `hadTip` separates the two cases for the message. */
+  | { ok: false; empty: true; hadTip: boolean };
 
 /**
  * Bookkeeping a merge commit carries (decisions.md #20): which branch
@@ -219,6 +228,8 @@ function rowToBranch(row: {
   parent_branch_id: number | null;
   commit_count: string | number;
   created_at: Date;
+  working_saved_by: string | null;
+  working_saved_at: Date | null;
 }): Branch {
   return {
     id: row.id,
@@ -227,11 +238,17 @@ function rowToBranch(row: {
     parentBranchId: row.parent_branch_id,
     commitCount: Number(row.commit_count),
     createdAt: row.created_at.toISOString(),
+    savedBy: row.working_saved_by,
+    savedAt: row.working_saved_at ? row.working_saved_at.toISOString() : null,
   };
 }
 
+// The last save on each branch rides along with the branch list: the
+// columns are on the row already, so "updated 3h ago by sandeep" per
+// branch costs nothing beyond naming them here.
 const BRANCH_SELECT = `
   SELECT b.id, b.repo_id, b.name, b.parent_branch_id, b.created_at,
+         b.working_saved_by, b.working_saved_at,
          (SELECT count(*) FROM commits c WHERE c.branch_id = b.id) AS commit_count
   FROM branches b JOIN repos r ON r.id = b.repo_id`;
 
@@ -299,7 +316,8 @@ export async function createBranch(
       `INSERT INTO branches (repo_id, name, parent_branch_id, base_snapshot,
          working_snapshot, working_saved_by, working_saved_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, repo_id, name, parent_branch_id, created_at, 1 AS commit_count`,
+       RETURNING id, repo_id, name, parent_branch_id, created_at,
+         working_saved_by, working_saved_at, 1 AS commit_count`,
       [
         repoId,
         name,
@@ -445,6 +463,13 @@ function rowToCommit(row: {
  * commit need not still be the source's newest one: if the source
  * gained commits since the merge was computed, what was merged is
  * still exactly that older tip, and the base must say so.
+ *
+ * A commit that changes nothing is refused (decisions.md #28): the
+ * incoming snapshot is diffed against the branch's last commit first,
+ * and an empty diff means nothing is written at all — not even the
+ * working save. Merge commits are the one exception: their job is the
+ * bookkeeping above, which still has to happen when the merged result
+ * matches what the branch already had.
  */
 export async function commitWorking(
   pool: pg.Pool,
@@ -458,6 +483,25 @@ export async function commitWorking(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    if (!merge) {
+      // Compared with the engine's diff, not raw JSON equality, so the
+      // rule is exactly the one the diff view shows: if that view
+      // would say "no schema changes", this is not a commit. Missing
+      // tip = first commit, which is measured against nothing.
+      const tip = await client.query(
+        `SELECT c.snapshot FROM commits c
+         JOIN branches b ON b.id = c.branch_id
+         JOIN repos r ON r.id = b.repo_id
+         WHERE c.branch_id = $1 AND ${IS_MEMBER("$2")}
+         ORDER BY c.id DESC LIMIT 1`,
+        [branchId, username],
+      );
+      const previous: Schema = tip.rows[0]?.snapshot ?? { tables: [] };
+      if (diffSchemas(previous, snapshot).changes.length === 0) {
+        await client.query("ROLLBACK");
+        return { ok: false, empty: true, hadTip: tip.rowCount === 1 };
+      }
+    }
     const saved = await saveWorkingOnClient(
       client,
       branchId,

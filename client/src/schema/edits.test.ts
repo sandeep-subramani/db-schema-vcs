@@ -230,20 +230,64 @@ describe("foreign key edits", () => {
   });
 
   it("offers only unique-on-their-own columns of matching type as targets", () => {
-    expect(validFkTargets(schema, "unique-id")).toEqual([
+    // From orders.user_id (a unique-id): users.id is the only unique-id
+    // column in the schema that is unique on its own.
+    expect(validFkTargets(schema, { table: "orders", column: "user_id" })).toEqual([
       { table: "users", column: "id" },
     ]);
     // Text targets: users.email and products.sku are unique; other text
     // columns (display_name, name, note) are not.
-    expect(validFkTargets(schema, "text")).toEqual([
+    expect(validFkTargets(schema, { table: "orders", column: "note" })).toEqual([
       { table: "users", column: "email" },
       { table: "products", column: "sku" },
     ]);
-    // A column of a composite PK is never a target: order_items has none.
-    expect(
-      validFkTargets(schema, "whole-number-small").filter(
-        (t) => t.table === "order_items",
-      ),
-    ).toEqual([]);
+    // A column of a composite PK is never a target: order_items has
+    // three whole-number columns and not one of them is offered.
+    expect(validFkTargets(schema, { table: "orders", column: "id" })).toEqual([
+      { table: "products", column: "id" },
+    ]);
+  });
+
+  it("never offers a column as its own foreign-key target", () => {
+    // users.id is the schema's only unique-id column, so a foreign key
+    // starting there has nowhere to point — pointing at itself would be
+    // a constraint every row meets by definition.
+    expect(validFkTargets(schema, { table: "users", column: "id" })).toEqual([]);
+    // users.email drops itself but still sees the other unique text column.
+    expect(validFkTargets(schema, { table: "users", column: "email" })).toEqual([
+      { table: "products", column: "sku" },
+    ]);
+  });
+
+  it("still offers a different column of the same table", () => {
+    // The parent-id shape: nodes.parent_id → nodes.id is a real
+    // constraint, so same-table targets are not excluded wholesale.
+    const tree: Schema = {
+      tables: [
+        {
+          name: "nodes",
+          columns: [
+            { name: "id", type: "whole-number", nullable: false },
+            { name: "parent_id", type: "whole-number", nullable: true },
+          ],
+          primaryKey: ["id"],
+        },
+      ],
+    };
+    expect(validFkTargets(tree, { table: "nodes", column: "parent_id" })).toEqual([
+      { table: "nodes", column: "id" },
+    ]);
+    // And the foreign key it produces is one the engine accepts.
+    valid(
+      addForeignKey(tree, "nodes", {
+        column: "parent_id",
+        references: { table: "nodes", column: "id" },
+      }),
+    );
+  });
+
+  it("has no targets when the starting column doesn't exist", () => {
+    expect(validFkTargets(schema, { table: "users", column: "ghost" })).toEqual([]);
+    expect(validFkTargets(schema, { table: "ghost", column: "id" })).toEqual([]);
   });
 });

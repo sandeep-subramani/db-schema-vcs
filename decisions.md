@@ -1099,3 +1099,410 @@ materialized.
 
 **What I deliberately cut:** Any charset rule, and any migration of
 existing names.
+
+---
+
+## 27. Repo home is the landing; only free and near-free panels ship
+
+**The decision:** Opening a repo lands on a repo home, not the schema
+editor. The home shows what this repo is, what's on this branch, and
+who else is in it; `Open in editor` goes to the editor, and the repo
+name in the top bar comes back. The first-commit gate keeps precedence
+over the home on an empty branch, and every gate exit — start editing,
+import JSON, import SQL, load example — goes straight to the editor,
+as does any import started from the top bar.
+
+The home's content was cut to a hard cost line: only panels readable
+from data `RepoScreen` already fetches, plus one server change that
+returns columns already sitting on the row. Everything past that line
+was dropped from the design rather than deferred with a placeholder,
+so nothing on screen is a stub.
+
+Shipped: repo identity with a shared/member-count badge; the branch's
+latest commit as a headline; a table inventory (name + shape — column
+count, primary key, foreign-key count); branch cards with commit
+count, `updated 3h ago by sandeep`, default/current tags, and a switch
+button; a rail with tables/columns/foreign-keys/commits, the save
+state, the member list, and import/export.
+
+Dropped: a repo description (needs a migration), per-table "last
+changed" (a snapshot fetch per commit plus a diff per pair), the
+latest commit's contents, "dropped on this branch", a cross-branch
+recent-commits feed (needs a new endpoint), per-branch conflict badges
+(a merge-context request plus a full engine merge per branch, to
+render a badge and throw it away), "N commits ahead" and a repo-wide
+commit total (both need a rule for the copied split-point commit of
+#16), a stored SQL dialect, and Delete repo (no endpoint exists).
+
+**The alternatives:** Keep the editor as the landing and enrich the
+existing bars in place (~1–2h, presentation only) — rejected: a
+status line can't hold a branch list or a member list, and the gap
+being closed is orientation, not density. A home reachable as a view
+but not the landing — rejected: the design is a home with `Open in
+editor` on it, which only reads as a landing. Full parity with the
+reference design (~1–1.5 days including server work) — rejected on
+the timebox: day 5 is ship, and the two costliest panels are exactly
+the ones a reader's eye lands on first, so a slow or half-populated
+version would be worse than their absence.
+
+**The reasoning:** Landing in the editor was never a decision — it
+fell out of build order, since the editor shipped on day 1 and
+`RepoScreen` was built as a single working surface. The argument
+against a dashboard landing is real (the dominant action here is
+editing, not reading, so a home taxes the common case one click) but
+it was never weighed; the reference design settled it the other way,
+and the repo-name-as-home link keeps the tax to one click in each
+direction.
+
+The cost line is the substance of this entry. `RepoScreen` already
+fetched more than it displayed — repo, members, the full branch list
+with commit counts and parent pointers, the current branch's snapshot,
+and its commit list — so most of a dashboard was already paid for.
+The one server change earns its place by the same test: `branches`
+already stores `working_saved_by` and `working_saved_at`, they were
+simply absent from `BRANCH_SELECT`, so per-branch recency costs two
+lines of SQL instead of a request per branch.
+
+**What I deliberately cut:** Every panel listed as dropped above, and
+any placeholder or "coming soon" tag standing in for them — unlike the
+SQL-import door of #14, nothing here is committed scope waiting on a
+build, so a nag would be promising work that isn't planned. Also cut:
+inlining the add-member form the design shows in the rail — the rail
+lists members and links to the existing Share dialog, keeping one code
+path for the mutation and its error handling.
+
+---
+
+## 28. A commit that changes nothing is refused — server rule, merge commits exempt
+
+**The decision:** A commit is rejected (400, nothing written) when the
+snapshot it carries records the same schema as the branch's last
+commit — or, on a first commit, no schema at all. "Same schema" means
+the engine's own `diffSchemas` reports zero changes, so the rule is
+exactly the one the diff view draws: no commit can land in history and
+then show "No schema changes" when opened. Merge commits are the one
+exception: a commit carrying a merge marker is always allowed, even
+when the merged result matches what the branch already had. The
+toolbar's Commit… button greys out under the same rule, computed with
+the same engine call on the client, with a hint saying which case it
+is ("nothing to commit yet" vs "matches the last commit").
+
+This supersedes what #25 deliberately cut: the API no longer accepts
+an empty first commit. #25's other half survives — dropping every
+table on a branch that has commits is a real change and still commits.
+
+**The alternatives:** Raw JSON equality instead of the engine diff —
+rejected: per #18 a pure reorder isn't a change, so a reorder-only
+commit would slip through and land in exactly the dead history entry
+this fixes. Client-only gating (the button alone) — rejected: the API
+would still mint empty commits for any other caller, hiding the bug
+rather than fixing it. Server-only — rejected: you'd type a commit
+message before being told no. Blocking empty merge commits too —
+rejected: that commit is what advances the merged branch's stored base
+(#20), so refusing it would strand a no-op merge with no way to record
+it, and the in-memory marker dies on reload.
+
+**The reasoning:** History is the product here. An entry that opens on
+"No schema changes" is a lie about what happened on the branch, and it
+poisons the neighbours — a diff is computed against its predecessor,
+so no-op commits make the previous real change harder to find. The
+check goes first in the commit transaction, before the staleness check
+and the working save, so a refused commit writes literally nothing:
+the working state is left where it was and Save still works normally.
+
+**The accepted tradeoffs:** The Commit button now needs the tip
+commit's schema, which the branch load didn't fetch — one extra
+request per branch load (the commit list carries metadata only). If
+that fetch fails the button stays live and the server answers instead,
+so the failure mode is a slightly worse message, not a broken button.
+A reorder-only edit can be saved but never committed, which follows
+from #18 and is the same answer the diff view already gives.
+
+**What I deliberately cut:** No "commit anyway" escape hatch, and no
+prompt offering one — git's `--allow-empty` exists for markers and
+hooks that this product has no equivalent of. No backfill: empty
+commits already in a history stay there.
+
+## 29. One `Edit` button opens the entry doors; the commit dialog names its branch instead of picking one
+
+**The decision:** Every way of getting a schema into a branch now lives
+behind a single `Edit` button on the repo home, right-aligned beside
+the repo name where `Open in editor` was. It opens the first-commit
+gate — the three door cards (build by hand / paste JSON / paste SQL)
+that a brand-new branch already lands on — and those doors are the only
+route to the editor and to either importer. Removed: `Import JSON` and
+`Import SQL` from the top bar, `Open in editor` from the home, and the
+duplicate `Import JSON` / `Import SQL` from the home's rail. `Export
+JSON` keeps exactly one home, on that rail. The gate takes a second
+copy set for a branch that already has a schema ("Change the schema on
+X", doors reading "Replace from JSON/SQL" and saying so, no
+first-commit ring, no example-schema shortcut) plus a `← Back to the
+repo home` link the automatic gate doesn't get.
+
+Separately, and against the original ask: the commit dialog gets **no
+branch picker**. Its submit button reads `Commit into <branch>` — the
+branch you're standing on, which is `main` on a fresh repo.
+
+**The alternatives:** *For the doors* — leaving the buttons where they
+were and only deduplicating the rail copies: rejected, it fixes the
+duplication but not the "everything exposed at once, in three
+different places" complaint. A dropdown menu under `Edit` instead of a
+full page: rejected, the gate already exists, is already designed, and
+already explains each option in a sentence; a menu would be a second
+design of the same list. A separate `EditDoors` component rather than
+a copy flag on `FirstCommitGate`: rejected, two files to keep visually
+in sync for one differing paragraph. Hiding the branch bar while the
+doors are open (a literal reading of "only these options accessible"):
+rejected, it would also strip the branch switcher and `Commit…` off the
+automatic gate and undo #25.
+
+*For the commit dialog* — a live dropdown that commits onto any chosen
+branch: rejected, see the reasoning. A dropdown offering the current
+branch plus "New branch…": rejected as scope for now, though it's the
+safe version of the idea if the need comes back. A dropdown showing
+only the current branch, disabled: rejected, a control you can't
+operate is worse than a label.
+
+**The reasoning:** The repo home is the landing page (#27) and had
+grown into a button wall with the same actions in two places — schema
+input scattered across the chrome while the hand editor sat elsewhere.
+Collapsing the exits to one named `Edit` makes the home a place you
+read and the gate the place you act, and it costs nothing to build
+because the gate is the entry-door page from #14; it was simply
+unreachable once a branch had a schema.
+
+The commit picker is refused because of what a commit is here. Per #15
+and #28 a commit means "write the schema on screen into this branch's
+working state, then stamp it", and that write is guarded by a
+per-branch revision number held only for the branch on screen.
+Committing onto another branch would overwrite that branch's
+saved-but-uncommitted work with a schema never based on it, using a
+revision we don't hold — and the "pre-filled with main" default would
+make the destructive case the one-click case. Git has the same rule:
+you switch branch, then commit. The real want behind the ask was
+knowing where the commit lands, and a label answers that exactly.
+
+**The accepted tradeoffs:** Reaching the editor is now two clicks from
+the home instead of one (`Edit`, then `Open the editor`) — accepted:
+the second click is the one that names which of three things you're
+about to do. Importing from *inside* the editor now means going back
+to the home first; accepted, imports replace the whole schema and are
+not mid-edit operations. `FirstCommitGate` carries two copy sets in one
+component, so its JSX has ternaries in it — accepted over a duplicate
+component. `RepoScreen` gains a second view-state flag (`doorsOpen`
+alongside `showOverview`); at three flags this stops being tolerable
+and wants a real view union, but two is not yet that.
+
+**What I deliberately cut:** No dropdown menu variant of `Edit`, no
+per-branch commit target, no cherry-pick or "commit this onto another
+branch" flow (that's a merge, and the engine already has one). No
+change to the automatic first-commit gate's behaviour or copy — an
+empty branch still lands there and still cannot be clicked past
+without choosing a door.
+
+## 30. Undo is scoped to the two views that show the working schema — button and shortcut together
+
+**The decision:** The top-bar `Undo` button and its `Ctrl/Cmd+Z`
+shortcut are both rendered/bound only in the editor and the repo home.
+On the entry doors, a commit or working diff, Compare and Merge, the
+button is not rendered at all (not merely disabled) and the shortcut is
+not listening. Inside the two live views nothing changes: the button
+still disables itself when the undo stack is empty, and the stack still
+resets on every branch load.
+
+**The alternatives seriously considered:** Leave the button in the top
+bar on every view, disabled where it can't fire — the shipped
+behaviour; rejected because it advertises a capability five of seven
+views don't have. Move the button out of the top bar into the editor's
+own chrome — rejected, the top bar is where the reference images put
+the chrome actions and a control that changes position is harder to
+find than one that disappears. Hide the button but leave the shortcut
+global — rejected for the reason below. Hide the button and drop the
+shortcut entirely, leaving only the toast's `Undo` — rejected, the
+keystroke is the fast path for the editor, which is where nearly every
+undoable edit is made.
+
+**The reasoning:** The stack holds working-schema snapshots only. It
+reverts seven things — table add/rename/delete, any column or
+constraint edit, JSON import, SQL import, load-example, "load their
+version" on a save conflict, and abandon-merge — and touches nothing
+server-side, so no commit, save, branch, merge or share is undoable.
+The editor is where six of those are made; the home is where
+abandon-merge leaves you and where an undo visibly changes the table
+summary. Everywhere else the button could only ever be greyed out.
+
+Gating the shortcut alongside the button fixes a real bug, not just
+tidiness. Ungated, `Ctrl/Cmd+Z` fired in Compare and Merge, which
+don't render the working schema at all — the undo landed, the edit was
+gone, and nothing on screen moved to say so. In the working diff it
+was milder but still wrong: the diff you were reading rewrote itself.
+The empty-stack case was always harmless (`undo()` returns the same
+history object, so React bails), which is why this only ever showed up
+after an edit-then-review round trip within one branch sitting.
+
+**The accepted tradeoffs:** This is the first logic change in the UI
+restyle — a one-line `if (!showUndo) return` guard plus `showUndo` in
+the effect's deps. Paying for it, `currentBranch`, `showGate` and
+`showUndo` had to move above the render's `loadError` early return so
+the hook stays unconditional (`react-hooks/rules-of-hooks`); the
+derivations are pure and read only top-level state, so the move is
+positional. A user who edits, opens Compare, and reflexively hits
+`Ctrl/Cmd+Z` now gets nothing instead of a silent revert — that is the
+point, but it is a keystroke that used to "work". The toast's own
+`Undo` is unaffected and still covers the four schema-replacing edits
+at the moment they happen.
+
+**What I deliberately cut:** No visible "undo isn't available here"
+affordance — a hidden control needs no explanation. No undo for
+anything server-side. No move of the button out of the top bar. No
+change to the 6s toast, the `UNDO_LIMIT`, the per-branch stack reset,
+or the existing guards that already froze undo behind an open modal and
+inside text fields.
+
+## 31. Editing after a merge is a link inside the banner's sentence; while a merge is pending, `Edit` on the home skips the entry doors
+
+**The decision:** The pending-merge banner's existing phrase "adjust in
+the editor" becomes a real control that opens the editor on the merged
+working state. It stays inside the sentence — no fourth button beside
+`Review changes` / `Commit merge…` / `Abandon`. Separately, while a
+merge is pending on the branch you're looking at, the repo home's
+`Edit` button (decisions.md #29) goes straight to the editor instead of
+the entry doors. With no merge pending, `Edit` still opens the doors,
+unchanged.
+
+**The alternatives seriously considered:** A fourth banner button
+(`Edit schema`, leftmost and quiet) — rejected: the banner's job is to
+get you to `Commit merge…`, and a fourth control dilutes that row.
+`Adjust in editor` as a default-weight button between `Review changes`
+and `Commit merge…`, reading as review → adjust → commit — rejected for
+the same crowding reason, and it would sit next to the primary and
+compete with it. Leaving the doors path alone and shipping only the
+banner link — rejected: the doors offer `Replace from JSON` and
+`Replace from SQL`, which on a pending merge would silently throw the
+merged schema away. Keeping the doors but rendering the two Replace
+doors disabled while a merge is pending — rejected as more markup and a
+new `FirstCommitGate` prop for a route the user has no reason to want
+mid-merge.
+
+**The reasoning:** The capability was already there and only the
+affordance was missing. `MergeView` saves the merged schema into the
+parent's *working* state, `landMerge` reloads that branch, and every
+downstream view — the home's table list, the editor, `Review changes` —
+renders it. So "Edit" during a pending merge was already editing the
+merged result, not the last commit; it just took two clicks through a
+page whose other doors are destructive. And `doCommit` commits
+`history.present` with the merge marker attached, so an edit made
+before committing lands inside the merge commit — one commit, merge
+plus adjustments, which is what a merge that needs a touch-up should
+produce.
+
+The banner survives into the editor (it renders above `.layout`, not
+inside the view), so `Commit merge…` and `Abandon` stay one click away
+the whole time you're adjusting. That is what makes the in-sentence
+link enough: it is a route, not a mode.
+
+**The accepted tradeoffs:** A link in prose is quieter than a button —
+someone scanning only the button row may not see it. Accepted: the
+sentence is short, sits at the top of the screen, and the link carries
+ink weight plus an accent underline rather than the usual accent-on-
+accent link colour, which would sink into the banner's tinted ground.
+`Edit` on the home now means two things depending on whether a merge is
+pending; accepted because the doors' destructive options are exactly
+what you don't want mid-merge, and the branch-level meaning ("work on
+this schema") is the same either way. Second logic change of the UI
+restyle: one new handler (`openMergeEditor`) that only clears view-state
+flags, and one conditional on an existing prop callback. No change to
+the save, commit, merge-marker or guard paths.
+
+**What I deliberately cut:** No fourth banner button. No "continue
+editing" affordance anywhere else (the branch bar, the toast, the merge
+view's own success state). No warning or disabled state on the doors —
+they're simply not on the path any more while a merge is pending. No
+persistence for `pendingMerge`: a reload still loses the banner
+(decisions.md #20's accepted corner), and this change doesn't touch it.
+
+---
+
+## 32. Every native `<select>` is replaced by an in-house listbox — we now own dropdown keyboard and accessibility behaviour
+
+**The decision:** All eight `<select>` elements in the app are gone,
+replaced by one component, `client/src/components/Select.tsx`. The call
+sites: column type on an existing row and in the add-column form, both
+foreign-key pickers (target table, target column), the branch switcher,
+Compare's from/to branch and from/to commit, and the new-branch
+"Starting from" picker.
+
+The closed control is a button carrying the current value; the open
+list is a portalled panel in the same vocabulary as the theme and
+account popovers — same panel fill, same border, same violet tick on
+the selected row. The list renders through `createPortal` into `<body>`
+and positions itself `fixed`, and it flips above the trigger when there
+isn't room below.
+
+Alongside it, `client/src/components/ColumnTypeIcon.tsx` draws one
+glyph per column type — seventeen, on the closed control as well as in
+the list. Variants of one idea share a glyph and differ by a corner
+badge: the three integer widths are `#` with one, two or three dots;
+the auto-number trio is a climbing staircase with the same dots; `with
+time zone` is the plain clock or calendar plus a globe badge; `date &
+time` is the calendar plus a clock badge.
+
+**The alternatives seriously considered:** Keep native `<select>` and
+accept the OS-drawn list — the reason this came up at all: the popup is
+painted by the platform, not the page, so on the near-black ground of
+the new palette it opens as a white slab with no CSS reachable from our
+side. Style only the closed trigger with `appearance: none` and leave
+the popup native — cheaper and keeps the platform's behaviour, rejected
+because the trigger was never the problem. Take a dependency (Radix,
+Headless UI, Downshift) — the strongest option on correctness, since
+these are the exact edge cases those libraries exist to have already
+solved; rejected under the no-new-dependency rule for a component we
+render eight times, and because their unstyled primitives still leave
+the panel, the tick and the glyph column to us. Position the list
+absolutely inside the trigger instead of portalling — rejected, it gets
+clipped: the per-row type picker sits inside `.columns-panel`, which is
+`overflow-x: auto`.
+
+**The reasoning:** This is the second step in the redesign that goes
+past JSX and CSS, and unlike the first it isn't a judgement call about
+scope — a native select genuinely cannot be restyled into a popover.
+The choice was between a dropdown that contradicts the rest of the
+theme on every dark-mode screen and owning the behaviour ourselves.
+
+Owning it means matching what the platform gave away: arrows to move,
+Home/End to the ends, PageUp/PageDown by a page, Enter to choose,
+Escape to dismiss, type-ahead to jump, and `combobox` / `listbox` roles
+with `aria-activedescendant` so the selection is announced. That parity
+is the whole cost of this decision, and it is the part that rots
+quietly — nothing in the test suite fails if a keystroke stops working.
+
+The glyphs are the reason the list is worth having rather than merely
+matching. The type vocabulary is our own (#9) and reads as seventeen
+near-identical phrases; the icon's real job is separating the families —
+number, text, date, boolean — at a glance, which is why variants inside
+a family were drawn as one glyph plus a badge rather than seventeen
+unrelated drawings.
+
+**The accepted tradeoffs:** We are responsible for dropdown
+accessibility from here on, including anything a future browser or
+screen-reader version changes underneath us. The portal means the list
+inherits nothing from its call site, so per-view styling has to be
+passed in explicitly (`menuClassName`, which is how the identifier
+lists get their mono face), and the position has to be recomputed on
+scroll and resize instead of the browser doing it for free. Opening
+costs one hidden measurement pass before the list is painted — inside a
+layout effect, so it doesn't flicker. At 20px the one-dot and two-dot
+integer glyphs are genuinely hard to tell apart; accepted, the label
+beside them carries that difference. The hover highlight follows
+`pointermove` rather than `pointerenter`, because with `pointerenter` a
+list opened by keyboard under a resting cursor stole the highlight from
+the row the keyboard had just landed on — found by driving it, not by
+reading it.
+
+**What I deliberately cut:** No multi-select, no filter or search field
+inside the list (the longest list is seventeen fixed entries and
+type-ahead covers it), no async or paged options, no native `<select>`
+fallback path — one implementation, so a bug is in one place. No
+generic "menu" component: this is a value picker, and the theme and
+account popovers stayed their own small components rather than being
+bent into a shared abstraction that has two callers.

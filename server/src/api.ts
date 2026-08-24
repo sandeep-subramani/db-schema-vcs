@@ -302,6 +302,14 @@ export function createApi(pool: pg.Pool): express.Router {
       return;
     }
     if (!result.ok) {
+      if ("empty" in result) {
+        res.status(400).json({
+          error: result.hadTip
+            ? "Nothing to commit — this schema matches the last commit. Change something first."
+            : "Nothing to commit — there's no schema here yet. Add a table first.",
+        });
+        return;
+      }
       if ("invalidMerge" in result) {
         res.status(400).json({
           error:

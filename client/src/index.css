@@ -1,25 +1,107 @@
+/* Zoho Puvi, the UI typeface. It isn't on Google Fonts, so the files
+   come from Zoho's CDN (static.zohocdn.com). Zoho's own stylesheet
+   declares a separate family per weight (Zoho_Puvi_Medium, …) each at
+   font-weight: normal; we re-declare one family with real weights so the
+   font-weight values used throughout this file keep working. */
+@font-face {
+  font-family: "Zoho Puvi";
+  src: url("https://static.zohocdn.com/zohofonts/zohopuvi/4.0/Zoho_Puvi_Regular.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zoho Puvi";
+  src: url("https://static.zohocdn.com/zohofonts/zohopuvi/4.0/Zoho_Puvi_Medium.woff2")
+    format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zoho Puvi";
+  src: url("https://static.zohocdn.com/zohofonts/zohopuvi/4.0/Zoho_Puvi_Semibold.woff2")
+    format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Zoho Puvi";
+  src: url("https://static.zohocdn.com/zohofonts/zohopuvi/4.0/Zoho_Puvi_Bold.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, sans-serif;
+  /* Manual override set by theme.ts; forcing color-scheme flips every
+     light-dark() token below. No attribute = follow the OS. */
+  &[data-theme="light"] {
+    color-scheme: light;
+  }
+  &[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  /* Drafting-table system (DESIGN_PLAN.md): near-black neutral ground,
+     panel sheets, four fixed meanings — green added, red dropped, amber
+     changed, violet interactive (magenta = the "feature" side). */
+  --font-ui: "Zoho Puvi", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-ui);
   line-height: 1.5;
-  --border: color-mix(in srgb, currentColor 16%, transparent);
-  --border-soft: color-mix(in srgb, currentColor 10%, transparent);
-  --hover: color-mix(in srgb, currentColor 7%, transparent);
-  --selected: color-mix(in srgb, currentColor 11%, transparent);
-  --muted: color-mix(in srgb, currentColor 55%, transparent);
-  --danger: light-dark(#b91c1c, #f87171);
-  --ok: light-dark(#15803d, #4ade80);
-  --accent: light-dark(#1d4ed8, #93c5fd);
+  --bg: light-dark(#f2f2f5, #0e0e15);
+  --panel: light-dark(#ffffff, #16161f);
+  --ink: light-dark(#1b1b23, #e8e8f0);
+  --border: color-mix(in srgb, var(--ink) 16%, transparent);
+  --border-soft: color-mix(in srgb, var(--ink) 9%, transparent);
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --selected: color-mix(in srgb, var(--accent) 14%, transparent);
+  --muted: color-mix(in srgb, var(--ink) 62%, transparent);
+  --danger: light-dark(#b3261e, #f27e7e);
+  --ok: light-dark(#177245, #4cc38a);
+  --warn: light-dark(#96650f, #d9a13b);
+  --accent: light-dark(#5b4bc8, #b1a5f7);
+  /* Text sitting on a solid accent fill (primary buttons). */
+  --accent-ink: light-dark(#ffffff, #16121f);
+  /* The second branch color: magenta, paired with violet in diagrams. */
+  --accent-2: light-dark(#a83d8b, #cb62ab);
+  /* The dark chrome frame around the whole app, same in both themes. */
+  --frame: #08080c;
+  /* Identity avatars (top-bar chip, repo rail). Deepened violet →
+     magenta so white initials stay legible in both themes — the plain
+     --accent flips too light in dark for text to sit on. */
+  --avatar-fill: linear-gradient(
+    140deg,
+    light-dark(#5b4bc8, #6c58d0),
+    light-dark(#9c3f88, #97479c)
+  );
 }
 
 body {
   margin: 0;
+  /* Matches the sheet so overscroll doesn't reveal a different ground. */
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .app {
   display: flex;
   flex-direction: column;
+  /* The sheet is edge-to-edge: no chrome frame, no inset, no rounding. */
   min-height: 100vh;
+  overflow: clip;
+  background-color: var(--bg);
+  /* The worktop: a faint drafting dot-grid under everything; panels
+     (top bar, sidebars, cards) lay over it as solid sheets. */
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--ink) 8%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
 }
 
 /* --- top bar --------------------------------------------------------- */
@@ -27,21 +109,47 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   padding: 0.65rem 1.25rem;
   border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Same mark as the login hero (.gate-gem), shrunk to chrome size. */
+.topbar-gem {
+  flex-shrink: 0;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .topbar-actions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+/* Hairline grouping the chrome: history controls | schema I/O | you. */
+.topbar-rule {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.3rem;
+  background: var(--border);
 }
 
 /* --- layout ---------------------------------------------------------- */
@@ -52,23 +160,45 @@ body {
   min-height: 0;
 }
 
+/* --- sidebar: the table list ------------------------------------------ */
+
 .sidebar {
-  width: 15rem;
+  width: 16.5rem;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
-  padding: 1rem;
+  padding: 1.15rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
+  overflow-y: auto;
+  background: var(--panel);
 }
 
 .sidebar-title {
   margin: 0;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* Tally riding beside the TABLES heading. */
+.sidebar-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4rem;
+  padding: 0.1rem 0.4rem;
+  box-sizing: border-box;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--hover);
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .table-list {
@@ -77,51 +207,139 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.15rem;
 }
 
 .table-list button {
   width: 100%;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  border: none;
-  border-radius: 0.4rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
-.table-list button:hover {
-  background: var(--hover);
+/* Branch-line tick before each table name; violet on the open one. */
+.table-list-tick {
+  flex-shrink: 0;
+  width: 2px;
+  height: 0.95rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
-.table-list button.selected {
-  background: var(--selected);
-  font-weight: 600;
+.table-list-name {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table-list-count {
+  margin-left: auto;
   font-size: 0.72rem;
   color: var(--muted);
   white-space: nowrap;
 }
 
+.table-list button:hover {
+  background: var(--hover);
+  border-color: var(--border-soft);
+}
+
+.table-list button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-list button.selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  font-weight: 600;
+}
+
+.table-list button.selected .table-list-tick {
+  background: var(--accent);
+}
+
+/* Suggested first tables — only on an empty schema, so they can't
+   collide with a name already taken. */
+.starters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.starter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Dashed, like the gate's doors: something that could exist. */
+.starter {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.starter:hover {
+  background: var(--hover);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.starter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.starter-plus {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.starter-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
 .editor {
   flex: 1;
   min-width: 0;
-  padding: 1.5rem 2rem 3rem;
+  padding: 1.6rem 2rem 3rem;
   overflow: auto;
 }
 
 /* --- table editor ----------------------------------------------------- */
 
 .table-editor {
-  max-width: 56rem;
+  max-width: 62rem;
 }
 
 .table-editor-head {
@@ -129,7 +347,31 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.table-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  /* Narrow editor column: the name field can only shrink so far (see
+     its min-width below), so let the count chip drop under it rather
+     than have the two fight over the same strip. */
+  flex-wrap: wrap;
+}
+
+/* Tally beside the table name, same chip as the sidebar heading. */
+.column-count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
 }
 
 .name-field {
@@ -144,29 +386,54 @@ body {
   color: inherit;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 0.35rem;
-  padding: 0.2rem 0.4rem;
+  border-radius: 0.45rem;
+  padding: 0.25rem 0.45rem;
   min-width: 0;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .name-field input:hover {
   border-color: var(--border-soft);
+  background: var(--hover);
 }
 
 .name-field input:focus {
   border-color: var(--accent);
   outline: none;
-  background: var(--hover);
+  background: transparent;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .table-name input {
-  font-size: 1.35rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
   font-weight: 650;
+  letter-spacing: -0.02em;
+  /* Shrink-wrap the name so the count chip sits beside it; browsers
+     without field-sizing just keep the default input width. */
+  field-sizing: content;
+  /* border-box or the two limits below lie: min-width would add the
+     padding on top (a 3rem floor rendering at ~3.9rem) and max-width
+     could never hold it, since min-width always wins. The field then
+     painted over the count chip in a narrow editor column. */
+  box-sizing: border-box;
+  min-width: 3rem;
+  max-width: 100%;
 }
 
 .field-error {
   color: var(--danger);
   font-size: 0.78rem;
+}
+
+/* The column grid reads as one sheet: rounded panel, ruled rows. */
+.columns-panel {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--panel);
+  overflow-x: auto;
 }
 
 .columns-table {
@@ -176,18 +443,88 @@ body {
 
 .columns-table th {
   text-align: left;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 0.4rem 0.6rem;
+  padding: 0.6rem 0.9rem;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
   border-bottom: 1px solid var(--border);
 }
 
 .columns-table td {
-  padding: 0.3rem 0.6rem;
+  padding: 0.45rem 0.9rem;
   border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+
+.columns-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.columns-table th:last-child,
+.columns-table td:last-child {
+  text-align: right;
+}
+
+.columns-table td .name-field input {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+/* Checkbox as a drawn box: violet fill plus a tick when on.
+   `vertical-align: middle` is load-bearing, not cosmetic. An
+   inline-grid with no in-flow items baselines off its bottom edge;
+   the moment :checked::before adds the tick, the container inherits
+   *that item's* baseline instead and the whole box drops a few px.
+   Aligning to the line's middle makes the position independent of
+   whether the tick exists, so ticking a box no longer nudges it. */
+.columns-panel input[type="checkbox"] {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.columns-panel input[type="checkbox"]:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+.columns-panel input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.columns-panel input[type="checkbox"]:checked::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.26rem;
+  margin-top: -0.15rem;
+  border-left: 2px solid var(--accent-ink);
+  border-bottom: 2px solid var(--accent-ink);
+  rotate: -45deg;
+}
+
+.columns-panel input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.columns-panel input[type="checkbox"]:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .cell-center {
@@ -199,23 +536,53 @@ body {
 }
 
 .length-field {
-  width: 5.5rem;
-  font: inherit;
+  width: 6rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   color: inherit;
-  background: transparent;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.35rem;
-  padding: 0.2rem 0.4rem;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.length-field:hover {
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.length-field:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* What the primary key is, and how to add a column: one line under
+   the sheet, the form pushed to the right edge of it. */
+.columns-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0.9rem 0 1.5rem;
 }
 
 .pk-summary {
-  margin: 0.75rem 0 1.25rem;
+  margin: 0;
   font-size: 0.85rem;
   color: var(--muted);
 }
 
 .pk-summary strong {
-  color: inherit;
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.columns-foot .add-form {
+  margin-left: auto;
 }
 
 /* --- forms ------------------------------------------------------------ */
@@ -230,45 +597,311 @@ body {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
+  gap: 0.5rem;
+}
+
+/* The sidebar's add-a-table box: a small card of its own. */
+.add-form--card {
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--ink) 2.5%, transparent);
+}
+
+.add-form--card input {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+/* An empty field is a dead button, not a hidden one — keep the
+   disabled fill readable enough to read as the next step. */
+.add-form--card .btn:disabled {
+  opacity: 0.7;
+}
+
+.add-form--card .btn--primary:disabled {
+  opacity: 0.85;
 }
 
 .add-form input[type="text"],
 .add-form input:not([type]),
-.add-form select {
+.add-form .uiselect-trigger {
   font: inherit;
   color: inherit;
-  background: transparent;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
   border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  padding: 0.35rem 0.55rem;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
-select {
+.add-form--row input[type="text"],
+.add-form--row input:not([type]) {
+  min-width: 12rem;
+}
+
+.add-form input:hover {
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.add-form input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* --- dropdown (Select.tsx) -------------------------------------------
+
+   A native <select> draws its list with the operating system's own
+   widget: a white slab in a near-black app, and unstyleable by design.
+   Select.tsx rebuilds the list as a listbox we own, so it gets the same
+   panel, border and violet tick as the theme and account popovers.
+
+   The trigger keeps the box a text input has, so a dropdown and an
+   input sitting side by side in a form still line up. The menu is
+   portalled into <body> and positioned in viewport coordinates, so it
+   inherits nothing from its call site — every rule it needs lives on
+   .uiselect-menu and below, and per-view variants reach it through the
+   component's menuClassName. */
+.uiselect {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.uiselect-trigger {
   font: inherit;
   color: inherit;
-  background: transparent;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.35rem;
-  padding: 0.25rem 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
-select option {
-  color: initial;
-  background: Canvas;
+.uiselect-trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+/* Focus moves into the menu while it's open, so the trigger holds the
+   ring itself — otherwise the pair stops reading as one control. */
+.uiselect-trigger:focus-visible,
+.uiselect-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.uiselect-trigger:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.7;
+}
+
+.uiselect-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uiselect-value--empty {
+  color: var(--muted);
+}
+
+.uiselect-caret {
+  flex: none;
+  width: 0.3rem;
+  height: 0.3rem;
+  margin: -0.18rem 0.1rem 0 0.15rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  transition:
+    transform 0.14s ease,
+    margin-top 0.14s ease;
+}
+
+.uiselect-trigger[aria-expanded="true"] .uiselect-caret {
+  margin-top: 0.14rem;
+  transform: rotate(225deg);
+}
+
+.uiselect-icon {
+  flex: none;
+  display: inline-flex;
+  color: var(--muted);
+}
+
+/* The current value's glyph is part of the answer, not the list, so it
+   takes the accent while the options stay quiet. */
+.uiselect-trigger .uiselect-icon,
+.uiselect-option--selected .uiselect-icon {
+  color: var(--accent);
+}
+
+.uiselect-trigger:disabled .uiselect-icon {
+  color: var(--muted);
+}
+
+.uiselect-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  /* Select.tsx places this sheet by computing a max-height from the
+     space left in the viewport, then positions it that far above or
+     below the trigger. That arithmetic only holds if max-height IS the
+     rendered height — under content-box the padding and border add
+     ~12px on top of it, which pushed a clamped drop-down past the
+     viewport edge and made a drop-up cover the trigger. */
+  box-sizing: border-box;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--panel);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--frame) 30%, transparent);
+}
+
+.uiselect-list {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  outline: none;
+}
+
+.uiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 0.55rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* One highlight, driven by the keyboard and by hover alike, so
+   arrowing and pointing can never disagree about where you are. */
+.uiselect-option--active {
+  background: var(--hover);
+}
+
+.uiselect-option--selected {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.uiselect-option--selected.uiselect-option--active {
+  background: var(--selected);
+}
+
+.uiselect-option-label {
+  flex: 1 1 auto;
+}
+
+.uiselect-tick {
+  flex: none;
+  width: 0.7rem;
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-align: right;
+}
+
+/* Column types: seventeen options, each with its glyph. */
+.uiselect--type {
+  min-width: 11rem;
+}
+
+/* Identifiers — branch, column and target names — read as code. */
+.uiselect--mono .uiselect-value,
+.uiselect-menu--mono .uiselect-option {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
 }
 
 .btn {
   font: inherit;
   color: inherit;
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   padding: 0.35rem 0.75rem;
   cursor: pointer;
 }
 
+/* A button that only shows itself on hover — for chrome actions that
+   are dormant most of the time (Undo). */
+.btn--quiet {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+/* Filled but neutral: an action that is always there but isn't the
+   headline (Add table once the schema has tables). */
+.btn--fill {
+  background: var(--hover);
+  border-color: var(--border-soft);
+  font-weight: 500;
+}
+
+/* Full-width inside a card. */
+.btn--block {
+  width: 100%;
+  justify-content: center;
+  padding-block: 0.5rem;
+}
+
+/* Count riding along inside a button (History). */
+.count-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  margin-left: 0.45rem;
+  padding: 0 0.3rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .btn:hover:not(:disabled) {
   background: var(--hover);
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.btn--quiet:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--ink);
+}
+
+.btn--fill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
@@ -277,14 +910,38 @@ select option {
 }
 
 .btn--primary {
-  border-color: var(--accent);
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+
+/* Accent, but tinted rather than filled: an accent-coloured action
+   standing next to a solid primary without competing with it. */
+.btn--accent-soft {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
   font-weight: 600;
+}
+
+.btn--accent-soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
 }
 
 .btn--danger {
   border-color: color-mix(in srgb, var(--danger) 50%, transparent);
   color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: var(--danger);
 }
 
 .btn--ghost-danger {
@@ -305,23 +962,23 @@ select option {
 /* --- foreign keys ------------------------------------------------------ */
 
 .fk-section {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  margin-top: 1.75rem;
+  padding-top: 1.4rem;
+  border-top: 1px dashed var(--border);
 }
 
 .fk-section h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
 }
 
 .fk-list {
   list-style: none;
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.9rem;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 .fk-list li {
@@ -331,11 +988,16 @@ select option {
 }
 
 .fk-list code {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
+  background: var(--hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.5rem;
 }
 
 .fk-arrow {
-  color: var(--muted);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .fk-no-target {
@@ -353,24 +1015,95 @@ select option {
 
 .empty--sidebar {
   font-size: 0.82rem;
+  line-height: 1.55;
+  margin: 0;
 }
 
 .empty--main {
-  max-width: 26rem;
-  margin: 4rem auto;
+  max-width: 30rem;
+  margin: 5rem auto;
   text-align: center;
 }
 
 .empty--main h2 {
-  color: inherit;
+  margin: 0 0 0.6rem;
+  font-size: 1.9rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.empty--main p {
+  line-height: 1.6;
+}
+
+/* An empty state that is a failure, not a beginning, leads with a
+   glyph tile — the same tile the dialogs use to carry temperature. */
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin: 0 auto 1.7rem;
+  border: 1px solid;
+  border-radius: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.empty-icon--danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  color: var(--danger);
+}
+
+/* The way out of an empty state stands clear of the sentence above. */
+.empty--main > .btn {
+  margin-top: 1.6rem;
+}
+
+/* The table that isn't there yet: dashed card, placeholder columns. */
+.empty-glyph {
+  width: 14.5rem;
+  height: 3.4rem;
+  margin: 0 auto 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.8rem;
+}
+
+.empty-glyph span {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.empty-glyph span:nth-child(1) {
+  width: 3.6rem;
+}
+
+.empty-glyph span:nth-child(2) {
+  width: 2rem;
+}
+
+.empty-glyph span:nth-child(3) {
+  width: 2.6rem;
 }
 
 /* --- dialogs ------------------------------------------------------------ */
 
+/* A dialog is one of the app's sheets lifted off the worktop: the same
+   panel colour and radius family as the editor's cards, over a scrim
+   that dims and slightly blurs whatever it interrupted. */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 0.45);
+  background: light-dark(rgb(46 44 58 / 0.34), rgb(8 8 14 / 0.66));
+  backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
   z-index: 50;
@@ -378,74 +1111,244 @@ select option {
 }
 
 .dialog {
-  background: Canvas;
-  color: CanvasText;
+  background: var(--panel);
+  color: var(--ink);
   border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  padding: 1.25rem 1.5rem;
-  width: min(30rem, 100%);
+  border-radius: 1rem;
+  padding: 1.6rem 1.75rem;
+  width: min(37.5rem, 100%);
   max-height: 85vh;
   overflow: auto;
-  box-shadow: 0 20px 50px rgb(0 0 0 / 0.3);
+  box-shadow: 0 30px 70px light-dark(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.6));
 }
 
+/* The paste-a-blob dialogs (JSON, SQL) need room for the text; the
+   cascade confirm sits between the two, wide enough for one
+   collateral line per row. */
 .dialog--wide {
-  width: min(42rem, 100%);
+  width: min(43.75rem, 100%);
+}
+
+.dialog--confirm {
+  width: min(38.75rem, 100%);
 }
 
 .dialog h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Title row. The optional glyph tile carries the temperature of the
+   dialog — amber = careful, red = destructive — before the words do. */
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.dialog-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid;
+  border-radius: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.dialog-icon--warn {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+}
+
+.dialog-icon--danger {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
 }
 
 .dialog-hint {
+  margin: 0.75rem 0 0;
   color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.dialog-hint code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+}
+
+.dialog-hint strong {
+  color: var(--ink);
+}
+
+/* Dialog fields get more air than the toolbar's: a small label over a
+   full-width box, with the login page's focus halo. */
+.dialog .prompt-label {
+  gap: 0.5rem;
+  margin: 1.1rem 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.dialog .prompt-label input,
+.dialog .prompt-label .uiselect-trigger {
+  font-family: var(--font-mono);
   font-size: 0.85rem;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  border-radius: 0.62rem;
+  padding: 0.62rem 0.8rem;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.dialog .prompt-label input:hover {
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.dialog .prompt-label input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.dialog .field-error {
+  margin: 0.7rem 0 0;
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
+}
+
+.dialog-actions .btn {
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.55rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.dialog-actions .btn--primary {
+  padding-inline: 1.1rem;
+}
+
+/* Everything the change would take with it, one tinted line each: a
+   list you have to read, not a footnote. */
+.collateral-lead {
+  margin: 0.9rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .collateral {
-  margin: 0.5rem 0;
-  padding-left: 1.25rem;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
 }
 
 .collateral li {
-  margin: 0.25rem 0;
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.collateral li::before {
+  content: "−";
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--danger);
 }
 
 textarea.json {
   width: 100%;
   box-sizing: border-box;
-  min-height: 16rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.82rem;
+  min-height: 14.5rem;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.79rem;
+  line-height: 1.6;
   color: inherit;
-  background: var(--hover);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
   border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  padding: 0.6rem;
+  border-radius: 0.7rem;
+  padding: 0.8rem 0.9rem;
   resize: vertical;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
+textarea.json:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Pasting is the main road; the file picker is the layby beside it. */
 .file-pick {
-  display: block;
-  margin-top: 0.6rem;
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
+.file-pick input[type="file"] {
+  font: inherit;
+  max-width: 100%;
+  color: var(--muted);
+}
+
+.file-pick input[type="file"]::file-selector-button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  margin-right: 0.6rem;
+  cursor: pointer;
+}
+
+.file-pick input[type="file"]::file-selector-button:hover {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
 .import-errors {
-  margin-top: 0.75rem;
+  margin-top: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
-  border-radius: 0.4rem;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.85rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .import-errors p {
@@ -507,54 +1410,95 @@ textarea.json {
 
 /* --- toast --------------------------------------------------------------- */
 
+/* A lozenge floating over the worktop, in the sheet's own colors —
+   the amber dot carries the "not saved yet" meaning. */
 .toast {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 1.75rem;
   left: 50%;
   translate: -50% 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: color-mix(in srgb, CanvasText 92%, transparent);
-  color: Canvas;
-  border-radius: 0.5rem;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.88rem;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+  gap: 0.7rem;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.45rem 0.6rem 0.45rem 0.95rem;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.28);
   /* Below .overlay (50): a dialog must cover the toast, or its Undo
      button could change the schema behind a conflict dialog. */
   z-index: 40;
   max-width: min(42rem, calc(100vw - 2rem));
 }
 
+.toast-dot {
+  flex-shrink: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--warn);
+}
+
+.toast-text {
+  font-size: 0.88rem;
+}
+
 .toast-undo {
   font: inherit;
-  font-weight: 650;
-  background: transparent;
-  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: inherit;
-  text-decoration: underline;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
   cursor: pointer;
-  padding: 0;
+}
+
+.toast-undo:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 .toast-close {
   font: inherit;
+  font-size: 0.85rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
   background: transparent;
   border: none;
-  color: inherit;
-  opacity: 0.7;
+  border-radius: 999px;
+  color: var(--muted);
   cursor: pointer;
   padding: 0;
+}
+
+.toast-close:hover {
+  color: var(--ink);
+  background: var(--hover);
 }
 
 /* --- footer ---------------------------------------------------------------- */
 
 .foot {
-  padding: 0.45rem 1.25rem;
-  border-top: 1px solid var(--border);
-  font-size: 0.78rem;
+  padding: 0.55rem 1.5rem;
+  border-top: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.foot-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 0.7em;
 }
 
 .foot--ok {
@@ -569,35 +1513,536 @@ textarea.json {
 
 .gate {
   flex: 1;
+  position: relative;
   display: grid;
-  place-items: center;
-  padding: 2rem 1rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding: 3rem clamp(1.5rem, 6vw, 6.5rem);
 }
 
-.gate-card {
-  width: min(26rem, 100%);
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  padding: 2rem;
+@media (max-width: 56rem) {
+  .gate {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding-top: 4.5rem;
+  }
+}
+
+.gate-theme {
+  position: absolute;
+  top: 1.4rem;
+  right: 1.6rem;
+}
+
+/* The showcase column is a poster, not a document: nothing in it is
+   selectable and the pointer never turns into a text caret. */
+.gate-hero {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.gate-hero h1 {
+  margin: 0 0 1rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1.1rem;
+  font-size: clamp(2.1rem, 3.4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
-.gate-card h1 {
-  margin: 0;
-  font-size: 1.3rem;
+.gate-gem {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.4rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .gate-lead {
-  margin: 0 0 0.5rem;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 1.15rem;
+}
+
+/* The branch/merge vignette: a mono-typed mini graph, absolutely
+   positioned inside a fixed-height stage so the rails line up. */
+
+.gate-diagram {
+  position: relative;
+  height: 17rem;
+  max-width: 40rem;
+  margin: 2.75rem 0 3rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.diagram-rail {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: 2.1rem;
+  bottom: 1.9rem;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent-2));
+}
+
+.diagram-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.diagram-pill--merge {
+  bottom: 0;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
+.diagram-branch {
+  position: absolute;
+  top: 2.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.diagram-branch--main {
+  right: calc(50% + 2.2rem);
+  color: var(--accent);
+}
+
+.diagram-branch--feature {
+  left: calc(50% + 2.2rem);
+  color: var(--accent-2);
+}
+
+.diagram-branch-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.diagram-node {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.diagram-node--feature {
+  border-color: var(--accent-2);
+}
+
+.diagram-link {
+  position: absolute;
+  height: 2px;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.diagram-link--feature {
+  background: color-mix(in srgb, var(--accent-2) 55%, transparent);
+}
+
+.diagram-chip {
+  position: absolute;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--panel);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--frame) 12%, transparent);
+}
+
+.diagram-chip--left {
+  right: calc(50% + 3.2rem);
+}
+
+.diagram-chip--right {
+  left: calc(50% + 3.2rem);
+}
+
+.diagram-chip .op-changed {
+  color: var(--warn);
+}
+
+.diagram-chip .op-added {
+  color: var(--ok);
+}
+
+.diagram-badge {
+  padding: 0.12rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+  color: var(--ok);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The three one-line feature explanations under the diagram. */
+
+.gate-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.gate-point {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.gate-point-icon {
+  flex-shrink: 0;
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.gate-point-icon--warn {
+  color: var(--warn);
+}
+
+.gate-point p {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.gate-point p span {
+  color: var(--muted);
+}
+
+/* The claim card on the right. */
+
+.gate-card {
+  width: min(30rem, 100%);
+  justify-self: end;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.1rem;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--panel);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--frame) 14%, transparent);
+}
+
+@media (max-width: 56rem) {
+  .gate-card {
+    justify-self: stretch;
+  }
+}
+
+.gate-card-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.gate-card input {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.gate-card input:focus {
+  border-color: var(--accent);
+  outline: none;
+  /* Soft violet halo instead of the platform focus ring. */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.gate-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Live preview of the identity being claimed. It mounts the moment
+   the field has content, so the entrance animation plays on mount and
+   there is nothing to animate away — an empty field simply has no row.
+   Chip reuses the top-bar .user-chip treatment. */
+
+.gate-identity {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  animation: gate-identity-hop 280ms cubic-bezier(0.34, 1.35, 0.64, 1) both;
+}
+
+@keyframes gate-identity-hop {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem) scale(0.94);
+  }
+  60% {
+    transform: translateY(-0.1rem) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-identity {
+    animation: none;
+  }
+}
+
+.gate-identity-chip {
+  color: var(--ink);
+  background: var(--hover);
+  border-color: var(--border-soft);
+  padding-block: 0.25rem;
+}
+
+.gate-identity-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .gate-submit {
-  align-self: flex-start;
-  padding: 0.45rem 1.1rem;
+  width: 100%;
+  padding: 0.8rem 1.1rem;
+  border-radius: 0.6rem;
+  font-size: 1.05rem;
+}
+
+/* --- theme switcher ------------------------------------------------------ */
+
+.theme-switch {
+  position: relative;
+}
+
+.theme-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.theme-switch-btn:hover {
+  background: var(--hover);
+}
+
+.theme-switch-caret {
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.theme-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 50;
+  width: max-content;
+  padding: 1rem 1.15rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--frame) 30%, transparent);
+}
+
+.theme-menu-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.theme-menu-options {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  background: var(--hover);
+}
+
+.theme-option--active {
+  border-color: var(--accent);
+}
+
+.theme-option-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.theme-option-check {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Mini page previews drawn in CSS. Colors are fixed per option — a
+   "dark" thumb must look dark whatever theme is active. */
+
+.theme-thumb {
+  position: relative;
+  width: 7rem;
+  height: 4.2rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.theme-thumb--dark {
+  background: #101018;
+}
+
+.theme-thumb--light {
+  background: #ffffff;
+}
+
+.theme-thumb--system {
+  background: linear-gradient(90deg, #101018 50%, #ffffff 50%);
+}
+
+.theme-thumb-head {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.theme-thumb-gem {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 0.1rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #8b7ae8, #cb62ab);
+}
+
+.theme-thumb-bar {
+  height: 0.28rem;
+  border-radius: 999px;
+}
+
+.theme-thumb-head .theme-thumb-bar {
+  width: 1.6rem;
+}
+
+.theme-thumb-body {
+  position: absolute;
+  top: 1.35rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.theme-thumb-body .theme-thumb-bar {
+  width: 100%;
+}
+
+.theme-thumb--dark .theme-thumb-bar {
+  background: #23232f;
+}
+
+.theme-thumb--light .theme-thumb-bar {
+  background: #e4e4ec;
+  border: 1px solid #d4d4de;
+}
+
+.theme-thumb--system .theme-thumb-head .theme-thumb-bar {
+  background: #23232f;
+}
+
+.theme-thumb--system .theme-thumb-body .theme-thumb-bar:first-child {
+  background: #23232f;
+  width: 45%;
+}
+
+.theme-thumb--system .theme-thumb-body .theme-thumb-bar:last-child {
+  background: #ffffff;
+  border: 1px solid #d4d4de;
+  width: 45%;
+  align-self: flex-end;
+}
+
+.theme-menu-note {
+  margin: 0.8rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 /* --- shared form bits --------------------------------------------------- */
@@ -612,7 +2057,7 @@ textarea.json {
 }
 
 .prompt-label input,
-.prompt-label select {
+.prompt-label .uiselect-trigger {
   font: inherit;
   font-weight: 400;
   color: inherit;
@@ -622,18 +2067,140 @@ textarea.json {
   padding: 0.45rem 0.6rem;
 }
 
-.prompt-label input:focus,
-.prompt-label select:focus {
+.prompt-label input:focus {
   border-color: var(--accent);
   outline: none;
 }
 
 .user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--ink);
   border: 1px solid var(--border-soft);
   border-radius: 999px;
-  padding: 0.2rem 0.7rem;
+  padding: 0.2rem 0.8rem;
+}
+
+.user-chip:has(.user-chip-avatar) {
+  padding-left: 0.25rem;
+}
+
+.user-chip-avatar {
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* --- user menu ------------------------------------------------------- */
+
+/* The chip as a popover trigger. Inherits the .user-chip pill so the
+   button and the read-only chips elsewhere read as the same object. */
+.user-menu {
+  position: relative;
+}
+
+.user-chip--btn {
+  border-color: var(--border);
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  padding-right: 0.6rem;
+  cursor: pointer;
+}
+
+.user-chip--btn:hover {
+  background: var(--hover);
+}
+
+.user-chip-caret {
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.user-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 50;
+  min-width: 13rem;
+  padding: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--frame) 30%, transparent);
+}
+
+.user-menu-title {
+  margin: 0;
+  padding: 0.35rem 0.6rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Hairline between the two navigations, and under the identity line. */
+.user-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--border);
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-menu-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.user-menu-item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.user-menu-icon {
+  width: 1rem;
+  text-align: center;
+  color: var(--accent);
+}
+
+.user-menu-item:disabled .user-menu-icon {
+  color: var(--muted);
+}
+
+/* "Current" on the repo list, where My repos is where you already are. */
+.user-menu-tag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .link-btn {
@@ -643,16 +2210,23 @@ textarea.json {
   padding: 0;
   color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 0.2em;
   cursor: pointer;
+}
+
+.link-btn:hover {
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink));
+  text-decoration-thickness: 2px;
 }
 
 /* --- repo home ------------------------------------------------------------ */
 
 .repo-home {
   flex: 1;
-  width: min(46rem, 100%);
+  box-sizing: border-box;
+  width: min(65rem, 100%);
   margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+  padding: 2.75rem 1.5rem 3rem;
 }
 
 .repo-home-head {
@@ -660,12 +2234,48 @@ textarea.json {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.6rem;
 }
 
 .repo-home-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Tally beside the heading; only rendered once there is one. */
+.repo-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.12rem 0.7rem;
+}
+
+.repo-new-btn {
+  border-radius: 0.6rem;
+  padding: 0.6rem 1.05rem;
+}
+
+/* List on the left, identity rail on the right; the rail drops below
+   the list once there is no room for two columns. */
+.repo-home-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+@media (max-width: 54rem) {
+  .repo-home-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .repo-list {
@@ -674,36 +2284,203 @@ textarea.json {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .repo-row {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
+  align-items: center;
+  gap: 1rem;
   font: inherit;
   color: inherit;
   text-align: left;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  padding: 0.75rem 1.1rem;
   cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .repo-row:hover {
-  background: var(--hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--frame) 12%, transparent);
+}
+
+.repo-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.repo-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .repo-row-name {
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .repo-row-meta {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.repo-row-go {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.repo-row:hover .repo-row-go {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+/* --- repo home: identity rail --------------------------------------------- */
+
+.repo-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rail-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  padding: 1.1rem;
+  background: var(--panel);
+}
+
+.rail-user {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.rail-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rail-user-text {
+  min-width: 0;
+}
+
+.rail-user-name {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.rail-user-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.rail-rule {
+  margin: 0.95rem 0;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rail-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* --- repo home: empty state ----------------------------------------------- */
+
+.repo-empty {
+  box-sizing: border-box;
+  max-width: 43rem;
+  margin: 8rem auto 4rem;
+  padding: 2.5rem 2.5rem 2.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.9rem;
+  text-align: center;
+}
+
+.repo-empty h2 {
+  margin: 1.7rem 0 0.7rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.repo-empty p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.repo-empty code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+/* A branch about to fork: the commit you don't have yet is the hollow
+   ring, the branch you haven't cut is the grey dot. */
+.repo-empty-graph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.repo-empty-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.repo-empty-dot--pending {
+  background: color-mix(in srgb, var(--ink) 32%, transparent);
+}
+
+.repo-empty-ring {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 2px solid var(--accent-2);
+}
+
+.repo-empty-line {
+  width: 2.6rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--accent), var(--accent-2));
+}
+
+.repo-empty-line--tail {
+  background: linear-gradient(
+    to right,
+    var(--accent-2),
+    color-mix(in srgb, var(--ink) 32%, transparent)
+  );
 }
 
 /* --- repo screen / branch bar ----------------------------------------------- */
@@ -725,23 +2502,76 @@ textarea.json {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.45rem 1.25rem;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+  background: var(--panel);
 }
 
 .branch-pick {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8rem;
-  font-weight: 650;
+  gap: 0.55rem;
+}
+
+.branch-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-.branch-pick select {
+/* Where you are, as a chip: the live-branch dot plus its name. */
+.branch-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--hover);
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.branch-pill-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* The pill itself is the control, so the dropdown inside it goes
+   chromeless and brings only its caret. */
+.branch-pick .uiselect-trigger {
+  border-color: transparent;
+  border-radius: 0.3rem;
+  background: transparent;
+  padding: 0 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
   font-weight: 600;
-  color: inherit;
+  color: var(--ink);
+}
+
+/* Left to itself the chromeless trigger would ring its own text — a
+   stray rectangle floating inside the pill. The pill wears both states
+   instead, so the chip lights up as one piece. */
+.branch-pick .uiselect-trigger:hover:not(:disabled),
+.branch-pick .uiselect-trigger:focus-visible,
+.branch-pick .uiselect-trigger[aria-expanded="true"] {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.branch-pill:has(.uiselect-trigger:focus-visible),
+.branch-pill:has(.uiselect-trigger[aria-expanded="true"]) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .save-status {
@@ -753,15 +2583,24 @@ textarea.json {
   margin-left: 0.5rem;
 }
 
+/* Unsaved work is the one thing on this bar you can actually lose, so
+   it stops being a line of text and becomes an amber pill — the app's
+   "needs you" colour, the same one the blocked merge status wears. */
 .save-status--dirty {
-  color: inherit;
+  padding: 0.22rem 0.65rem 0.22rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .dirty-dot {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--warn);
 }
 
 .branchbar-actions {
@@ -776,46 +2615,75 @@ textarea.json {
 
 /* --- first-commit gate --------------------------------------------------------- */
 
+/* Centred on the worktop, but with auto margins rather than
+   justify-content so a short window can still scroll to the top. */
 .first-commit {
   flex: 1;
-  max-width: 44rem;
-  margin: 3.5rem auto;
-  padding: 0 1.5rem;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1.5rem 3.25rem;
   text-align: center;
 }
 
 .first-commit h2 {
-  margin: 0 0 0.5rem;
+  margin: auto 0 0.7rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.first-commit-quote {
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+}
+
+/* The branch name reads as the identifier it is. */
+.first-commit-branch {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--accent);
 }
 
 .first-commit-lead {
+  max-width: 48rem;
+  margin: 0 0 2.6rem;
   color: var(--muted);
-  margin: 0 0 2rem;
+  line-height: 1.6;
 }
 
 .door-grid {
+  width: 100%;
+  max-width: 66rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-  text-align: left;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.35rem;
 }
 
 .door {
   font: inherit;
   color: inherit;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 0.7rem;
-  padding: 1rem 1.1rem;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  padding: 2rem 1.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
-.door:hover:not(:disabled) {
-  background: var(--hover);
+.door:hover:not(:disabled),
+.door:focus-visible {
+  outline: none;
   border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
 .door:disabled {
@@ -823,12 +2691,34 @@ textarea.json {
   cursor: default;
 }
 
+/* One glyph per door: the editor's +, JSON braces, a SQL prompt. */
+.door-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.door-icon--json {
+  color: var(--accent-2);
+}
+
 .door-title {
-  font-weight: 650;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .door-desc {
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  line-height: 1.65;
   color: var(--muted);
 }
 
@@ -849,10 +2739,60 @@ textarea.json {
   vertical-align: middle;
 }
 
-.first-commit-example {
-  margin-top: 2rem;
-  font-size: 0.88rem;
+/* The commit this branch doesn't have yet: the branch line runs down
+   out of the doors into a hollow ring, labelled with what committing
+   would create. */
+.first-commit-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2.4rem;
+}
+
+.fc-node-line {
+  width: 1px;
+  height: 1.7rem;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--accent) 75%, transparent)
+  );
+}
+
+.fc-node-ring {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.2rem;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+}
+
+.fc-node-label {
+  margin-top: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.45rem;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.first-commit-example {
+  margin: 2.1rem 0 auto;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* Only on the doors reached from Edit — the automatic gate is a
+   branch's landing and has nowhere to go back to. Carries the auto
+   bottom margin so the block stays vertically centred once the
+   example-schema line above it is gone. */
+.first-commit-back {
+  margin: 1.9rem 0 auto;
+  font-size: 0.9rem;
 }
 
 /* --- history panel ----------------------------------------------------------------- */
@@ -861,42 +2801,45 @@ textarea.json {
   width: 17rem;
   flex-shrink: 0;
   border-left: 1px solid var(--border);
-  padding: 1rem;
+  padding: 1.15rem 1rem;
   overflow: auto;
+  background: var(--panel);
+}
+
+.history-hint {
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--muted);
 }
 
 .commit-list {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0.9rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.3rem;
 }
 
-.commit-list li {
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.history-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
+/* One commit, one node on the branch line: a dot, the message, then
+   who and when. The open one fills its dot and tints its card. */
 .commit-row {
   width: 100%;
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
-  gap: 0.1rem;
-  padding: 0.5rem 0.4rem;
-  border: none;
-  border-radius: 0.4rem;
+  gap: 0.6rem;
+  padding: 0.62rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .commit-row:hover {
@@ -904,18 +2847,40 @@ textarea.json {
 }
 
 .commit-row.selected {
-  background: var(--selected);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.commit-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.commit-row.selected .commit-dot {
+  background: var(--accent);
+}
+
+.commit-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .commit-badge {
-  font-size: 0.66rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
   white-space: nowrap;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.08rem 0.45rem;
+  border-radius: 0.4rem;
+  padding: 0.1rem 0.4rem;
   color: var(--muted);
   margin-left: 0.4rem;
   vertical-align: middle;
@@ -923,7 +2888,8 @@ textarea.json {
 
 .commit-message {
   font-size: 0.88rem;
-  font-weight: 550;
+  font-weight: 600;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -937,45 +2903,85 @@ textarea.json {
 .diff-view {
   flex: 1;
   min-width: 0;
-  padding: 1.25rem 2rem 3rem;
+  padding: 1.6rem 2.1rem 3rem;
   overflow: auto;
 }
 
+/* The way back, then the headline. The title speaks in the same voice
+   as an empty state's heading — this is a whole screen, not a panel. */
 .diff-head {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: 1.15rem;
+  margin-bottom: 1.7rem;
+}
+
+.diff-head > .btn {
+  flex: none;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.6rem;
+  background: var(--panel);
 }
 
 .diff-title h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
 
 .diff-title p {
-  margin: 0.15rem 0 0;
-  font-size: 0.82rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 
+/* Branch names inside a headline read as the identifiers they are:
+   mono, and coloured by side — violet is the branch being merged
+   into, magenta the branch being merged (same pair as the login
+   diagram). */
+.diff-title-branch {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  color: var(--accent);
+}
+
+.diff-title-branch--source {
+  color: var(--accent-2);
+}
+
+/* The rename question: a violet-lit sheet, because answering it is
+   the one interactive thing on an otherwise read-only screen. */
 .diff-questions {
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
-  border-radius: 0.6rem;
-  padding: 0.9rem 1.1rem;
-  margin-bottom: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 1rem;
+  padding: 1.15rem 1.4rem 1.25rem;
+  margin-bottom: 1.6rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 13%, transparent),
+      transparent 62%
+    ),
+    var(--panel);
 }
 
 .diff-questions h3 {
-  margin: 0 0 0.2rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .diff-questions-hint {
-  margin: 0 0 0.6rem;
-  font-size: 0.8rem;
+  margin: 0 0 1rem;
+  max-width: 64rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: var(--muted);
 }
 
@@ -985,54 +2991,80 @@ textarea.json {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .diff-questions li {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.65rem;
   flex-wrap: wrap;
 }
 
 .diff-question-text {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  margin-right: 0.25rem;
+}
+
+.diff-question-text code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  font-weight: 600;
 }
 
 .diff-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-  gap: 1rem;
+  gap: 1.1rem;
   align-items: start;
 }
 
+/* Every table that moved gets a card. The card is a sheet like any
+   other; the verdict is carried by the border and a light wash from
+   the top-left corner, never by a flat fill that would fight the
+   text. */
 .diff-card {
-  border: 1px solid var(--border);
-  border-radius: 0.7rem;
-  padding: 0.8rem 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  padding: 0.9rem 1.1rem 1rem;
+  background: var(--panel);
 }
 
 .diff-card--added {
-  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
-  background: color-mix(in srgb, var(--ok) 6%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--ok) 13%, transparent),
+      transparent 68%
+    ),
+    var(--panel);
 }
 
 .diff-card--dropped {
-  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
-  background: color-mix(in srgb, var(--danger) 5%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--danger) 11%, transparent),
+      transparent 68%
+    ),
+    var(--panel);
 }
 
 .diff-card-head {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.55rem;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.7rem;
 }
 
 .diff-card-name {
-  font-weight: 650;
-  font-size: 0.98rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
@@ -1043,35 +3075,40 @@ textarea.json {
 
 .diff-card-note {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 
 .diff-badge {
-  font-size: 0.66rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
   white-space: nowrap;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.08rem 0.5rem;
+  border-radius: 0.4rem;
+  padding: 0.14rem 0.42rem;
   color: var(--muted);
 }
 
 .diff-badge--added {
   color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
 }
 
 .diff-badge--dropped {
   color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
 }
 
 .diff-badge--renamed {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .diff-lines {
@@ -1080,14 +3117,15 @@ textarea.json {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.38rem;
 }
 
 /* The mark sits in a fixed gutter; the body wraps internally, so a
    long line continues indented under its own text, never under the
    +/− mark. (flex-wrap here would orphan the mark on its own row.) */
 .diff-line {
-  font-size: 0.85rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
   display: flex;
   gap: 0.45rem;
   align-items: baseline;
@@ -1099,7 +3137,9 @@ textarea.json {
 }
 
 .diff-line code {
-  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  font-weight: 600;
 }
 
 .diff-line-detail {
@@ -1107,9 +3147,10 @@ textarea.json {
 }
 
 .diff-mark {
+  font-family: var(--font-mono);
   font-weight: 700;
   flex-shrink: 0;
-  width: 0.8rem;
+  width: 0.85rem;
   text-align: center;
 }
 
@@ -1123,132 +3164,546 @@ textarea.json {
 
 .diff-line--changed .diff-mark,
 .diff-line--renamed .diff-mark {
-  color: var(--accent);
+  color: var(--warn);
 }
 
 .diff-unchanged {
-  margin-top: 1.25rem;
-  font-size: 0.82rem;
+  margin-top: 1.4rem;
+  font-size: 0.83rem;
   color: var(--muted);
 }
 
 /* --- merge view -------------------------------------------------------- */
 
+/* The parent branch is holding a merge it hasn't committed: a violet
+   strip under the branch bar, carrying the three ways out. */
 .merge-banner {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem 1.25rem;
   flex-wrap: wrap;
-  padding: 0.55rem 1.25rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
-  font-size: 0.85rem;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  font-size: 0.87rem;
 }
 
+/* The sentence takes the room that's left and wraps inside it; the
+   three ways out keep their row on the right rather than being
+   pushed under it. */
 .merge-banner-text {
+  flex: 1 1 24rem;
+  min-width: 0;
   margin: 0;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.merge-banner-text strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+/* The editing route lives inside the sentence, so it has to read as
+   a control on an accent-tinted ground — accent-on-accent would sink
+   into the banner, so it carries ink weight and an accent underline. */
+.merge-banner-text .link-btn {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration-color: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.merge-banner-text .link-btn:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
 .merge-banner-actions {
+  flex: none;
   margin-left: auto;
   display: flex;
   gap: 0.5rem;
 }
 
 .merge-conflicts {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.9rem;
 }
 
+/* The count is the alarm: a ringed "!" ahead of it, in the same red
+   the conflict cards are drawn in. */
 .merge-conflicts h3 {
-  margin: 0 0 0.2rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--danger);
 }
 
+.merge-conflicts-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .merge-conflicts-hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.8rem;
+  margin: 0 0 1.1rem;
+  max-width: 64rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: var(--muted);
 }
 
 .merge-conflict {
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
-  border-radius: 0.7rem;
-  padding: 0.8rem 1rem;
-  margin-bottom: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 38%, transparent);
+  border-radius: 1rem;
+  padding: 0.95rem 1.2rem;
+  margin-bottom: 0.75rem;
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--danger) 9%, transparent),
+      transparent 60%
+    ),
+    var(--panel);
 }
 
+/* Once a side is picked the alarm can stand down — the card keeps its
+   shape, loses its red. */
 .merge-conflict--resolved {
   border-color: var(--border);
+  background: var(--panel);
+}
+
+.merge-conflict {
+  display: flex;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
 }
 
 .merge-reasons {
+  flex: 1 1 22rem;
+  min-width: 0;
   list-style: none;
-  margin: 0 0 0.7rem;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.85rem;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.merge-reasons li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
 }
 
 .merge-reasons li::before {
-  content: "⚠ ";
+  content: "△";
+  flex: none;
   color: var(--danger);
+  font-size: 0.8rem;
 }
 
-.merge-sides {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 0.75rem;
+.merge-reasons code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 600;
 }
 
-.merge-side {
-  border: 1px solid var(--border-soft);
-  border-radius: 0.5rem;
-  padding: 0.6rem 0.75rem;
+/* The two ways out of a conflict, side by side on the row. Each wears
+   its branch's colour so the choice reads before the words do. */
+.merge-picks {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.merge-pick {
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.85rem;
+  font-weight: 600;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.merge-pick--ours {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.merge-pick--ours:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.merge-pick--theirs {
+  border-color: color-mix(in srgb, var(--accent-2) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 12%, transparent);
+  color: var(--accent-2);
+}
+
+.merge-pick--theirs:hover:not(:disabled) {
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 20%, transparent);
+}
+
+/* Chosen fills; the road not taken stays legible but recedes. */
+.merge-pick--kept {
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.merge-pick--ours.merge-pick--kept {
+  background: var(--accent);
+}
+
+.merge-pick--theirs.merge-pick--kept {
+  background: var(--accent-2);
+  color: #fff;
+}
+
+/* The road not taken recedes by losing its fill, not by going
+   transparent: it is still the control you click to change your mind,
+   so its label has to stay readable and it must not wear 0.45 — the
+   opacity this app spends on disabled buttons everywhere else. */
+.merge-pick--dropped {
+  border-color: color-mix(in srgb, var(--ink) 14%, transparent);
+  background: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.merge-pick--dropped:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* --- merge timeline ------------------------------------------------------ */
+
+/* The branch point at the top, one spine down the middle, both sides
+   hung off it. A table both branches touched shares a rung, so the
+   disagreement reads across one line instead of down two columns. */
+.merge-tl {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  margin-top: 2.25rem;
 }
 
-.merge-side--kept {
-  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
-  background: color-mix(in srgb, var(--ok) 5%, transparent);
+.merge-tl-origin {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.merge-side--dropped {
-  opacity: 0.55;
-}
-
-.merge-side-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.merge-side-name {
-  font-weight: 650;
-  font-size: 0.88rem;
-}
-
-.merge-side-pick {
-  align-self: flex-start;
-}
-
-.merge-grids {
+.merge-tl-heads,
+.merge-tl-row {
+  width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr 3.5rem 1fr;
   align-items: start;
 }
 
-.merge-grid > h3 {
-  margin: 0 0 0.6rem;
-  font-size: 0.85rem;
+/* The headings lean in toward the spine they label. */
+.merge-tl-heads {
+  margin: 1.6rem 0 0.6rem;
+  position: relative;
+}
+
+.merge-tl-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 0.95rem;
   font-weight: 650;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.merge-tl-head--ours {
+  grid-column: 1;
+  justify-content: flex-end;
+}
+
+.merge-tl-head--theirs {
+  grid-column: 3;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.merge-tl-head-dot {
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.merge-tl-head--theirs .merge-tl-head-dot {
+  background: var(--accent-2);
+}
+
+/* The spine itself: one line behind every rung, violet where the
+   parent's work sits and magenta further down, so the two branch
+   colours meet on it. */
+.merge-tl-rows {
+  position: relative;
+  width: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.merge-tl-rows::before {
+  content: "";
+  position: absolute;
+  /* Reaches up past the headings to meet the branch-point pill. */
+  top: -3.65rem;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  translate: -0.5px 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent) 70%, transparent),
+    color-mix(in srgb, var(--accent-2) 70%, transparent)
+  );
+}
+
+.merge-tl-cell {
+  min-width: 0;
+  position: relative;
+}
+
+.merge-tl-cell--ours {
+  grid-column: 1;
+}
+
+.merge-tl-cell--theirs {
+  grid-column: 3;
+}
+
+/* Leader line from the card's inner edge out to its node. */
+.merge-tl-cell:has(.diff-card)::after {
+  content: "";
+  position: absolute;
+  top: 1.55rem;
+  width: 1.15rem;
+  height: 1px;
+  background: var(--border);
+}
+
+.merge-tl-cell--ours:has(.diff-card)::after {
+  left: 100%;
+}
+
+.merge-tl-cell--theirs:has(.diff-card)::after {
+  right: 100%;
+}
+
+/* The node rides the spine, drawn over it so the line can't show
+   through the ring. */
+.merge-tl-node {
+  grid-column: 2;
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  margin-top: 1.15rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  box-sizing: border-box;
+  border: 2px solid
+    color-mix(
+      in srgb,
+      var(--accent-2) calc(var(--tl-t, 0) * 100%),
+      var(--accent)
+    );
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+/* A rung both sides fought over: bigger ring, in the alarm colour, and
+   its leader lines pick up the same red. */
+.merge-tl-row--conflict .merge-tl-node {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 1rem;
+  border-color: var(--danger);
+}
+
+.merge-tl-row--conflict .merge-tl-cell::after {
+  background: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+/* A card in a conflict is drawn like the conflict row above it. */
+.merge-tl-row--conflict .diff-card {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--danger) 10%, transparent),
+      transparent 68%
+    ),
+    var(--panel);
+}
+
+/* The branch line doesn't stop at the card, it feeds into it: a
+   brighter 2px edge on whichever side the spine is on. */
+.merge-tl-cell .diff-card {
+  --tl-edge: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.merge-tl-cell .diff-card--added {
+  --tl-edge: color-mix(in srgb, var(--ok) 70%, transparent);
+}
+
+.merge-tl-cell .diff-card--dropped {
+  --tl-edge: color-mix(in srgb, var(--danger) 60%, transparent);
+}
+
+.merge-tl-row--conflict .diff-card {
+  --tl-edge: color-mix(in srgb, var(--danger) 65%, transparent);
+}
+
+.merge-tl-cell--ours .diff-card {
+  border-right: 2px solid var(--tl-edge);
+}
+
+.merge-tl-cell--theirs .diff-card {
+  border-left: 2px solid var(--tl-edge);
+}
+
+/* Once a side is picked the rung stops shouting: the badge stays (the
+   conflict happened) but the alarm colour goes. */
+.merge-tl-row--settled .diff-badge--conflict {
   color: var(--muted);
+  border-color: var(--border);
+  background: var(--hover);
+}
+
+.diff-badge--conflict {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+/* Which branch a stacked card belongs to — only needed once the spine
+   collapses and the headings stop being above their own column. */
+.merge-tl-cell-side {
+  display: none;
+}
+
+.merge-tl-empty {
+  margin-top: 2rem;
+}
+
+/* "No changes on this side" sits in its own column, under its heading. */
+.merge-tl-quiet {
+  width: 100%;
+  margin-top: 0.9rem;
+  box-sizing: border-box;
+  padding-inline: 0.2rem;
+}
+
+.merge-tl-quiet--ours {
+  text-align: right;
+  padding-right: calc(50% + 1.75rem);
+}
+
+.merge-tl-quiet--theirs {
+  padding-left: calc(50% + 1.75rem);
+}
+
+/* Below the two-column threshold the spine can't do its job: the rungs
+   become one stacked list, each card saying which branch it came from. */
+@media (max-width: 62rem) {
+  .merge-tl-heads,
+  .merge-tl-node,
+  .merge-tl-rows::before,
+  .merge-tl-cell::after {
+    display: none;
+  }
+
+  .merge-tl-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .merge-tl-cell--ours,
+  .merge-tl-cell--theirs {
+    grid-column: 1;
+  }
+
+  .merge-tl-cell:empty {
+    display: none;
+  }
+
+  .merge-tl-cell-side {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .merge-tl-cell--theirs .merge-tl-cell-side {
+    color: var(--accent-2);
+  }
+
+  .merge-tl-quiet--ours,
+  .merge-tl-quiet--theirs {
+    padding: 0;
+    text-align: left;
+  }
+
+  /* Nothing is centred on a spine any more, the origin marker included. */
+  .merge-tl {
+    align-items: stretch;
+  }
+
+  .merge-tl-origin {
+    align-self: flex-start;
+  }
+
+  /* The edge that fed into the spine has nothing to feed into now, and
+     a lone thick border reads as a glitch — the side label says it. */
+  .merge-tl-cell--ours .diff-card,
+  .merge-tl-cell--theirs .diff-card {
+    border-width: 1px;
+  }
 }
 
 .merge-apply {
@@ -1256,29 +3711,47 @@ textarea.json {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.4rem;
   border-top: 1px solid var(--border);
 }
 
 .merge-apply-text {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.2rem;
 }
 
 .merge-apply-status {
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 650;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+/* Still blocked? The status says so in amber — the same "needs you"
+   colour the unsaved-changes chip uses. */
+.merge-apply-status--blocked {
+  color: var(--warn);
 }
 
 .merge-apply-hint {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
   color: var(--muted);
 }
 
 .merge-apply .btn {
   margin-left: auto;
+}
+
+/* A merge that can't be applied yet shouldn't look like a dimmed
+   solid button — it reads better as the tinted, not-yet version of
+   itself. */
+.merge-apply .btn--primary:disabled {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink));
 }
 
 .merge-apply-error {
@@ -1291,80 +3764,606 @@ textarea.json {
 
 /* --- compare view -------------------------------------------------------- */
 
+/* Both ends of the comparison live on one sheet: FROM on the left,
+   TO on the right, the swap between them. */
 .compare-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem 1.25rem;
+  align-items: end;
+  margin-bottom: 1.6rem;
+  padding: 1rem 1.25rem 1.1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  background: var(--panel);
 }
 
 .compare-group {
+  min-width: 0;
   display: flex;
-  align-items: flex-end;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
 .compare-group-label {
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
-  padding-bottom: 0.35rem;
+}
+
+.compare-selects {
+  display: flex;
+  gap: 0.6rem;
+  min-width: 0;
 }
 
 .compare-field {
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
 }
 
-.compare-field select {
-  max-width: 18rem;
-  color: inherit;
+/* The branch is an identifier and stays narrow; the commit line is a
+   sentence and takes whatever room is left. */
+.compare-field--branch {
+  flex: 0 1 9.5rem;
+}
+
+.compare-field--commit {
+  flex: 1 1 auto;
+}
+
+.compare-field .uiselect {
+  width: 100%;
+}
+
+.compare-field .uiselect-trigger {
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.87rem;
+}
+
+.compare-field--branch .uiselect-value {
+  font-weight: 600;
 }
 
 .compare-swap {
-  align-self: flex-end;
+  align-self: end;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.compare-swap:hover:not(:disabled) {
+  color: var(--ink);
 }
 
 .compare-unrelated {
   border: 1px solid var(--border);
-  background: var(--hover);
-  border-radius: 0.6rem;
-  padding: 0.7rem 1.1rem;
-  margin-bottom: 1.25rem;
-  font-size: 0.85rem;
+  background: var(--panel);
+  border-radius: 0.9rem;
+  padding: 0.95rem 1.25rem;
+  margin-bottom: 1.6rem;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.compare-unrelated strong {
+  color: var(--ink);
+}
+
+@media (max-width: 62rem) {
+  .compare-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-swap {
+    justify-self: start;
+  }
 }
 
 /* --- members ------------------------------------------------------------------------- */
 
+/* One card per person: avatar, mono handle, role pill. */
 .member-list {
   list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
 }
 
 .member-list li {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border-soft);
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+
+.member-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.member-name {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: 0.87rem;
+  font-weight: 600;
 }
 
 .member-role {
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  color: var(--muted);
+}
+
+.member-role--owner {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+/* Add-a-member sits directly under the list: field takes the room,
+   button keeps its label. */
+.dialog .add-form--row {
+  margin-top: 0.75rem;
+  gap: 0.6rem;
+}
+
+.dialog .add-form--row input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.dialog .add-form--row .btn {
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.6rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* --- repo home -------------------------------------------------------- */
+
+/* The repo name in the top bar is the way back here, so it needs to
+   read as a target without becoming a button-shaped thing. */
+.topbar-home {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.topbar-home:hover {
+  color: var(--accent);
+}
+
+.topbar-home:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 0.3rem;
+}
+
+.overview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: 1.6rem;
+  align-content: start;
+  padding: 1.6rem 1.8rem 2.2rem;
+}
+
+.overview-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  min-width: 0;
+}
+
+.overview-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.overview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.overview-head h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Same mark as the top bar and the login hero, at heading size. */
+.overview-gem {
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 0.22rem;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.overview-badge {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.overview-head .btn {
+  margin-left: auto;
+}
+
+/* Last commit on the branch, as one quiet line. */
+.overview-latest {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--panel);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+/* The same card as a button when there's a commit to open: reset the
+   inherited button chrome, keep the card's own look, follow the
+   .repo-row hover/focus affordance. */
+.overview-latest--clickable {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.overview-latest--clickable:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--frame) 12%, transparent);
+}
+
+.overview-latest--clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.overview-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--avatar-fill);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.overview-latest-author {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.overview-latest-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.overview-latest-message--empty {
+  white-space: normal;
+  color: var(--muted);
+}
+
+.overview-latest-when {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Table inventory: name and shape, no history column. */
+.overview-tables {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.overview-tables-head,
+.overview-table-row {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+  align-items: center;
+}
+
+.overview-tables-head {
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overview-table-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overview-table-row + .overview-table-row {
+  border-top: 1px solid var(--border-soft);
+}
+
+.overview-table-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-table-shape {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.overview-empty {
+  margin: 0;
+  padding: 1.2rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.overview-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.overview-branches h3,
+.overview-panel h3 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overview-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.overview-branch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.8rem;
+}
+
+.overview-branch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--panel);
+}
+
+.overview-branch-card--current {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.overview-branch-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.overview-branch-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.overview-branch-name {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.overview-tag {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overview-branch-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --- right rail ------------------------------------------------------- */
+
+.overview-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--panel);
+}
+
+.overview-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.overview-stats > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.overview-stats dt {
+  color: var(--muted);
+}
+
+/* Dotted leader, so the numbers line up on the right without a table. */
+.overview-stats > div::after {
+  content: "";
+  flex: 1;
+  align-self: end;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px dotted var(--border);
+  order: 1;
+}
+
+.overview-stats dd {
+  margin: 0;
+  order: 2;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.overview-saved {
+  margin: 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.overview-members {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overview-members li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.overview-member-name {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-members .overview-tag {
+  margin-left: auto;
+}
+
+.overview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overview-wide-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 62rem) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

@@ -36,9 +36,14 @@ export function OverwriteDialog({
         aria-label="Newer save exists"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2>
-          {who} saved newer changes{when}
-        </h2>
+        <div className="dialog-head">
+          <span className="dialog-icon dialog-icon--warn" aria-hidden="true">
+            !
+          </span>
+          <h2>
+            {who} saved newer changes{when}
+          </h2>
+        </div>
         <p className="dialog-hint">
           Saving now would replace their version with yours.{" "}
           <strong>Load theirs</strong> brings their version into your editor

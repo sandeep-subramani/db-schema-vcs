@@ -25,14 +25,19 @@ export function ConfirmDialog({
   return (
     <div className="overlay" onClick={onCancel}>
       <div
-        className="dialog"
+        className="dialog dialog--confirm"
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2>{title}</h2>
-        <p>This also removes:</p>
+        <div className="dialog-head">
+          <span className="dialog-icon dialog-icon--danger" aria-hidden="true">
+            !
+          </span>
+          <h2>{title}</h2>
+        </div>
+        <p className="collateral-lead">This also removes:</p>
         <ul className="collateral">
           {lines.map((line) => (
             <li key={line}>{line}</li>

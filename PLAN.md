@@ -101,6 +101,16 @@ scope change gets a decisions.md entry.
       (#23), Postgres type audit + auto-number family + FK twin rule
       (#24), splitter + translator + skip-list preview dialog, gate
       door enabled; 205 tests incl. pg_dump fixture
+- [x] Empty commits refused (decisions.md #28) — a branch whose schema
+      hadn't changed could still be committed, and the entry then
+      opened on "No schema changes". Now the server diffs the incoming
+      snapshot against the branch tip (engine `diffSchemas`, so a pure
+      reorder counts as unchanged per #18) and refuses with 400 before
+      writing anything; the Commit… button greys out under the same
+      rule, with a hint naming which case it is. Merge commits are
+      exempt — they carry the base advance of #20. Supersedes #25's
+      "UI guard only" cut: an empty first commit is now refused by the
+      API too
 - [ ] Stretch roadmap, in priority order (decisions.md #3, #4):
       1. migration SQL output (decisions.md #6 — stretch only)
       2. column defaults, indexes (~2–4h each, additive; single-col
@@ -118,3 +128,183 @@ scope change gets a decisions.md entry.
 - [ ] decisions.md full read-through: specific, honest, complete
 - [ ] Fresh-clone setup test + smoke test of the deployed URL
 - [ ] Buffer for whatever slipped
+
+## UI redesign (branch ui-redesign, view by view)
+- [x] Global look: token flip (violet accent, near-black ground,
+      magenta branch color, dark rounded app frame), Space Grotesk
+      webfont, primary buttons as solid fills
+- [x] Login page: two-column hero (branch/merge diagram + feature
+      lines) with the claim card on the right; refinement pass added
+      the input focus halo, the "You'll appear as" identity preview
+      that hops in while the field has content, and a non-selectable
+      showcase column
+- [x] Theme switcher: popover with Dark / Light / System preview
+      cards (replaces the placeholder cycling button)
+- [x] Repo listing (both states): wider two-column body — repo cards
+      left, identity rail right — mono repo names with a go arrow,
+      count pill beside the heading, top-bar gem + avatar chip, and a
+      dashed empty-state card carrying a small branch-graph glyph.
+      Branch pills and the RECENT ACTIVITY rail in the reference were
+      dropped on purpose: both need data the client doesn't have
+      (see NOTES.md), so this pass stayed presentation-only
+- [x] First-commit gate: door cards with glyph tiles and a centred
+      wider grid, mono branch name in the heading, and a new
+      line-ring-pill drawing under the doors naming the commit that
+      doesn't exist yet. Shared chrome caught up too — gem + avatar in
+      the top bar, quiet Undo, group rules, wrapping bar, branch chip
+      with a live dot, History count badge. The reference's
+      full-strength `Commit…` was not copied: it's disabled here
+      (decisions.md #25)
+- [x] Schema editor (both states): column grid in a rounded panel with
+      a tinted header strip and drawn checkboxes, mono identifiers,
+      primary key + add-column on one row, dashed rule before foreign
+      keys; sidebar rows with a branch-line tick and a card for the
+      add-a-table form; dashed SUGGESTED STARTERS rows on an empty
+      schema (the one approved behaviour change — they reuse the Add
+      table path); dashed-card glyph on the empty worktop; toast
+      restyled as a panel lozenge with an amber dot
+- [x] Editor dialogs: one shared shell for all eight (blurred
+      overlay, radius-16 panel, 600/700/620 widths, warn/danger glyph
+      tile beside the title, prompt fields with the login focus halo,
+      recessed paste areas, `::file-selector-button` file row,
+      right-aligned action row). Delete-table confirm shows its
+      cascade as tinted danger callouts with a mono `−`; Share became
+      avatar + mono handle + role pill cards with a violet-tinted Add
+      member. OverwriteDialog has no reference but took the amber
+      glyph as a sibling warning. Not copied: the reference sets the
+      identifiers inside a collateral line in mono — the engine emits
+      those lines as finished sentences (NOTES.md)
+- [x] Remaining views (diff / commit detail, history rail, merge in
+      every state, compare, repo error, pending-merge banner): shared
+      screen header with mono side-coloured branch names; table cards
+      on a solid panel base with a corner wash instead of a flat fill;
+      mono identifiers and amber `±`; rename question as a violet-lit
+      sheet; merge conflicts with a ringed `!`, a drawn VS divider,
+      violet (not green) for the kept side, amber blocked status and a
+      tinted-not-dimmed Apply; conflict reasons set their quoted
+      identifiers in mono (safe here — every quoted run the engine
+      emits is an identifier, unlike the dialogs-pass collateral
+      lines); compare as one FROM/TO sheet with visually-hidden field
+      labels; history commits as branch-line cards. The stale-save
+      dialog needed nothing — verified against a live conflict, not
+      assumed
+- [x] Merge view, second pass — reference reshapes it as a branch
+      graph: one spine down from a BRANCH POINT marker with each side's
+      cards hung off it, a table both branches touched sharing a rung,
+      conflicts collapsed to one compact row with the two picks inline.
+      Needed one new tested pure function (buildMergeTimeline in
+      client/src/diff/view-model.ts, 5 tests) to zip the two sides'
+      cards into rungs and record which conflicts touch each table —
+      approved mid-task, the only step past JSX-and-CSS in the whole
+      redesign. Rungs carry conflict ids rather than a flag so a
+      settled conflict stops showing red
+- [x] Dropdowns: every native `<select>` replaced by one in-house
+      listbox (`client/src/components/Select.tsx`) — same panel,
+      border and violet tick as the theme and account popovers, since
+      the OS drew the old lists as a white slab no CSS could reach.
+      All eight call sites: column type (row + add form), both foreign
+      key pickers, branch switcher, Compare's from/to branch and
+      commit, new-branch "Starting from". The list portals into
+      `<body>` to escape the columns table's overflow clip and flips
+      above the trigger when there's no room below. Full keyboard
+      parity with a native select (arrows, Home/End, PageUp/Down,
+      Enter, Escape, type-ahead) plus combobox/listbox roles. Also new:
+      `ColumnTypeIcon.tsx`, seventeen hand-drawn glyphs — one per
+      column type, on the closed control as well as in the list, with
+      variants of one idea sharing a glyph and differing by a corner
+      badge. This is the second step past JSX-and-CSS in the redesign
+      (a native select can't be restyled into a popover), approved
+      before the work; decisions.md #32
+- [x] Identity menu: `Switch user` (was repo-list-only) and `My repos`
+      (was the repo screen's top-left `← Repos`) moved into a popover
+      under the top-right identity chip, separated by a hairline. Both
+      are now reachable from every view in a repo, since the top bar
+      renders above all of them; on the repo list `My repos` shows
+      disabled and tagged `Current`. Both go through the existing
+      `guardDirty` → `UnsavedDialog`, so unsaved edits get the same
+      Save / Discard / Cancel choice as a branch switch. The two logic
+      changes (App's `switchUser`, RepoScreen's `onSwitchUser` prop)
+      were approved before the work
+- [x] Repo home: the latest-commit headline card is now clickable and
+      opens that commit's diff against its predecessor — the same
+      DiffView a History row opens, with `← Repo home` as the way
+      back. Partly reverses the "latest commit's contents" cut in
+      decisions #27 (the home still doesn't render the diff, it only
+      links to it). One new prop
+      (`onOpenLatestDiff`) reusing RepoScreen's existing `diffTarget`
+      state; approved before the work
+- [x] Repo home / editor entry doors consolidated behind one `Edit`
+      button, and the commit dialog names its destination. The home's
+      `Open in editor` plus the top bar's `Import JSON` / `Import SQL`
+      / `Export JSON` were four ways out of one screen; now `Edit`
+      (right-aligned beside the repo name, where `Open in editor` was)
+      opens the first-commit gate on demand, and its three doors are
+      the only route to the editor and both importers. The gate takes
+      a second copy set for a branch that already has a schema
+      ("Change the schema on X", "Replace from JSON/SQL", no
+      first-commit ring, no example-schema shortcut, plus a
+      `← Back to the repo home` link the automatic gate doesn't get).
+      Export JSON now lives only on the home's rail. The commit
+      dialog's submit button reads `Commit into <branch>` instead of
+      `Commit` — no branch picker, since committing onto another
+      branch would overwrite its working state with a schema never
+      based on it. Two view-state flags and one prop rename; the
+      commit path itself is untouched. Approved before the work,
+      including the drop of the branch-picker idea — needs a
+      decisions.md entry
+- [x] Undo scoped to the views that can use it. The top-bar `Undo` was
+      on every screen, disabled on most; it now renders only in the
+      editor and on the repo home — the two views showing the working
+      schema, which is the only thing the undo stack holds. Hidden on
+      the entry doors, commit/working diffs, Compare and Merge, and its
+      separator hairline hides with it. `Ctrl/Cmd+Z` is gated to the
+      same views, which fixes a real bug: in Compare and Merge the
+      shortcut reverted an edit with nothing on screen to show it, and
+      in a diff it rewrote the diff being read. The empty-stack case
+      was always a harmless no-op. First logic change of the restyle
+      (a guard on the keydown effect, plus three derivations hoisted
+      above the `loadError` early return so the hook stays
+      unconditional) — approved before the work; decisions.md #30
+- [x] Editing a merge before committing it. The pending-merge banner's
+      phrase "adjust in the editor" is now a link that opens the editor
+      on the merged working state, and while a merge is pending the
+      repo home's `Edit` goes straight to the editor instead of the
+      entry doors (whose `Replace from JSON/SQL` would have discarded
+      the merge). No state change was needed — the merged schema is
+      already the branch's working state, and `doCommit` commits what's
+      on screen with the merge marker, so adjustments land inside the
+      merge commit. Second logic change of the restyle (one handler
+      that clears view flags, one conditional callback) — approved
+      before the work; decisions.md #31
+- [x] Pre-merge audit of the whole branch. Ran the three suites (214
+      pass), typecheck, lint, a production build and the production
+      server serving it; drove every API route including its error
+      paths; drove every screen in both themes at 1440/720/600/420px.
+      Server came back clean everywhere, including the empty-commit
+      rule's rollback (a refused commit leaves no working save — read
+      the row back to confirm). Four presentation defects found and
+      fixed: the `Select` menu sheet was `content-box`, so the
+      viewport arithmetic that places it was ~12px out and a clamped
+      menu overhung the window while a drop-up covered its own
+      trigger; the un-chosen merge-conflict side rendered at ~2:1
+      contrast wearing the app's disabled opacity, on a control that
+      is still live; the repo-error screen had no top bar and so no
+      theme picker, against the standing rule; and the table-name
+      field's `min-width` under `content-box` made it overflow its
+      column-count chip by 15px in a narrow editor column. Zero JS
+      errors and zero React warnings across the session; no
+      horizontal page overflow at any width. Two light-theme contrast
+      items left as palette calls, not fixed: the amber "Unsaved
+      changes" pill (4.18:1) and the small count badges (4.45:1)
+- [x] Follow-ups from the audit. The FK picker offered a column itself
+      as a target (`users.id → users.id`) — valid to the engine (the
+      target exists, is unique on its own, types match) but a
+      constraint every row meets by definition, so validation can
+      never catch it and the picker had to. `validFkTargets` now takes
+      the starting column instead of a bare type, so it can exclude
+      that one column while still offering a *different* column of the
+      same table (`nodes.parent_id → nodes.id` is a real constraint),
+      and the type can no longer disagree with the column it's for. 3
+      new tests. Also corrected CLAUDE.md's typeface rule, which still
+      named Space Grotesk from Google Fonts — the app is on Zoho Puvi
+      from Zoho's CDN

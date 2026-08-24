@@ -2,6 +2,8 @@ import { useState } from "react";
 import { HealthFooter } from "./components/HealthFooter.tsx";
 import { RepoList } from "./components/RepoList.tsx";
 import { RepoScreen } from "./components/RepoScreen.tsx";
+import { ThemeToggle } from "./components/ThemeToggle.tsx";
+import { UserMenu } from "./components/UserMenu.tsx";
 import { UsernameGate } from "./components/UsernameGate.tsx";
 import { session } from "./session.ts";
 
@@ -12,6 +14,16 @@ import { session } from "./session.ts";
 export function App() {
   const [username, setUsername] = useState<string | null>(() => session.getUsername());
   const [repoId, setRepoId] = useState<number | null>(() => session.getRepoId());
+
+  // Dropping the identity drops the open repo with it, so the next
+  // person lands on their own repo list rather than someone else's
+  // work. Passed down to RepoScreen too — switching user is reachable
+  // from inside a repo, behind that screen's unsaved-changes guard.
+  function switchUser() {
+    session.clear();
+    setUsername(null);
+    setRepoId(null);
+  }
 
   let screen;
   if (username === null) {
@@ -27,22 +39,13 @@ export function App() {
     screen = (
       <>
         <header className="topbar">
-          <h1>Schema Version Control</h1>
+          <h1>
+            <span className="topbar-gem" aria-hidden="true" />
+            Schema Version Control
+          </h1>
           <div className="topbar-actions">
-            <span className="user-chip" title="Your demo identity">
-              {username}
-            </span>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                session.clear();
-                setUsername(null);
-                setRepoId(null);
-              }}
-            >
-              Switch user
-            </button>
+            <ThemeToggle />
+            <UserMenu username={username} onGoToRepos={null} onSwitchUser={switchUser} />
           </div>
         </header>
         <RepoList
@@ -64,6 +67,7 @@ export function App() {
           session.setRepoId(null);
           setRepoId(null);
         }}
+        onSwitchUser={switchUser}
       />
     );
   }

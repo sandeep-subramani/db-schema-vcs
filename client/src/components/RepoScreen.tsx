@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { EXAMPLE_SCHEMA, findTable, type Schema } from "engine";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { diffSchemas, EXAMPLE_SCHEMA, findTable, type Schema } from "engine";
 import {
   api,
   ApiError,
@@ -20,11 +20,15 @@ import { ImportExportDialog } from "./ImportExportDialog.tsx";
 import { SqlImportDialog } from "./SqlImportDialog.tsx";
 import { MembersDialog } from "./MembersDialog.tsx";
 import { OverwriteDialog } from "./OverwriteDialog.tsx";
+import { RepoOverview } from "./RepoOverview.tsx";
+import { Select } from "./Select.tsx";
 import { TableEditor, type EditRequest } from "./TableEditor.tsx";
 import { TableList } from "./TableList.tsx";
 import { TextPromptDialog } from "./TextPromptDialog.tsx";
+import { ThemeToggle } from "./ThemeToggle.tsx";
 import { Toast, type ToastData } from "./Toast.tsx";
 import { UnsavedDialog } from "./UnsavedDialog.tsx";
+import { UserMenu } from "./UserMenu.tsx";
 import { renameTable } from "../schema/edits.ts";
 
 // One repo, opened: branch bar on top, the editor in the middle,
@@ -62,10 +66,12 @@ export function RepoScreen({
   username,
   repoId,
   onLeaveRepo,
+  onSwitchUser,
 }: {
   username: string;
   repoId: number;
   onLeaveRepo: () => void;
+  onSwitchUser: () => void;
 }) {
   // --- repo-level state -------------------------------------------------
   const [repo, setRepo] = useState<Repo | null>(null);
@@ -82,6 +88,11 @@ export function RepoScreen({
     savedAt: null,
   });
   const [commits, setCommits] = useState<CommitMeta[]>([]);
+  // The last commit's schema, kept alongside the commit list so the
+  // Commit button can tell "changed" from "unchanged" (decisions.md
+  // #28). Null means no commits yet — or that the fetch failed, in
+  // which case the button stays live and the server decides.
+  const [tipSnapshot, setTipSnapshot] = useState<Schema | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [gateDismissed, setGateDismissed] = useState<Set<number>>(new Set());
@@ -103,6 +114,14 @@ export function RepoScreen({
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [merging, setMerging] = useState(false);
   const [comparing, setComparing] = useState(false);
+  // Opening a repo lands on its home, not the editor. Anything that
+  // brings a schema in or dismisses the gate turns this off — you
+  // asked to edit, so you get the editor.
+  const [showOverview, setShowOverview] = useState(true);
+  // "Edit" on the repo home (decisions.md #29): the entry doors on
+  // demand, not just on a virgin branch. One state flag rather than a
+  // route because every other view here is a flag too.
+  const [doorsOpen, setDoorsOpen] = useState(false);
   // A landed-but-uncommitted merge (decisions.md #20): remembered so
   // the commit can carry the merge marker. In memory only — a reload
   // loses it (#20's accepted corner). Keyed to its parent branch, so
@@ -112,6 +131,27 @@ export function RepoScreen({
 
   const schema = history?.present ?? null;
   const dirty = history !== null && history.present !== savedSchema;
+
+  // Same engine diff the server commits by (decisions.md #28), so the
+  // button and the server always agree on what counts as a change.
+  const changedSinceTip = useMemo(
+    () =>
+      schema === null || tipSnapshot === null
+        ? true
+        : diffSchemas(tipSnapshot, schema).changes.length > 0,
+    [schema, tipSnapshot],
+  );
+  // A merge commit is the exception: it records the merge even when
+  // the merged schema matches what this branch already had.
+  const mergePending =
+    pendingMerge !== null && pendingMerge.parentBranchId === branchId;
+  const canCommit =
+    mergePending ||
+    (commits.length === 0 ? (schema?.tables.length ?? 0) > 0 : changedSinceTip);
+  const commitBlockedReason =
+    commits.length === 0
+      ? "Nothing to commit yet — bring a schema in first"
+      : "Nothing to commit — this schema matches the last commit";
 
   // A branch splits at a commit (decisions.md #16), so only branches
   // with one are valid sources; commitCount is kept fresh by doCommit.
@@ -130,6 +170,7 @@ export function RepoScreen({
     setBranchId(id);
     session.setBranchId(id);
     setHistory(null);
+    setTipSnapshot(null);
     setConflictState(null);
     setDiffTarget(null);
     setMerging(false);
@@ -145,6 +186,20 @@ export function RepoScreen({
       setWorking({ rev: state.rev, savedBy: state.savedBy, savedAt: state.savedAt });
       setSelected(state.snapshot.tables[0]?.name ?? null);
       setCommits(commitList);
+      // Second hop on purpose: the list carries metadata only, and the
+      // Commit button needs the tip's schema to know whether anything
+      // changed. A failure here is not a branch-load failure — the
+      // button just stays live and the server has the last word.
+      const latest = commitList[0];
+      if (latest) {
+        try {
+          const tip = await api.getCommit(latest.id);
+          if (seq !== loadSeqRef.current) return;
+          setTipSnapshot(tip.snapshot);
+        } catch {
+          /* leave it null — see the tipSnapshot comment */
+        }
+      }
     } catch (e) {
       if (seq !== loadSeqRef.current) return;
       setLoadError(e instanceof ApiError ? e.message : "Couldn't load this branch");
@@ -208,29 +263,6 @@ export function RepoScreen({
     });
     setToast(null);
   }, []);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== "z") {
-        return;
-      }
-      const target = e.target;
-      if (
-        target instanceof HTMLElement &&
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-      ) {
-        return; // let the browser undo typing in the field
-      }
-      // While any modal is up, the schema on screen must stay frozen —
-      // an undo behind a conflict dialog would make "Overwrite their
-      // save" send something the user no longer sees.
-      if (document.querySelector(".overlay")) return;
-      e.preventDefault();
-      undo();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo]);
 
   // Deleting or importing can invalidate the selection.
   const selectedTable = schema && selected ? findTable(schema, selected) : undefined;
@@ -322,6 +354,7 @@ export function RepoScreen({
           setSavedSchema(snapshot);
           setWorking({ rev: outcome.rev, savedBy: username, savedAt: outcome.savedAt });
           setCommits((list) => [outcome.commit, ...list]);
+          setTipSnapshot(snapshot);
           setBranches((list) =>
             list.map((b) =>
               b.id === branchId ? { ...b, commitCount: b.commitCount + 1 } : b,
@@ -495,29 +528,118 @@ export function RepoScreen({
     setPendingMerge(null);
   }
 
+  /** Straight to the editor on the merged working state. The merged
+   *  schema IS the branch's working state (MergeView saved it there),
+   *  so this needs no loading of its own — it only has to clear the
+   *  views stacked on top of the editor. */
+  function openMergeEditor() {
+    setDiffTarget(null);
+    setComparing(false);
+    setDoorsOpen(false);
+    setShowOverview(false);
+  }
+
   function openCommitDialog(prefill: string | null) {
     setCommitPrefill(prefill);
     setCommitError(null);
     setCommitting(true);
   }
 
+  // The view the branch bar and the top bar are looking at. Derived
+  // above the render's early return so the Undo shortcut below can be
+  // a plain unconditional hook.
+  const currentBranch = branches.find((b) => b.id === branchId) ?? null;
+
+  const showGate =
+    schema !== null &&
+    currentBranch !== null &&
+    commits.length === 0 &&
+    schema.tables.length === 0 &&
+    !dirty &&
+    !gateDismissed.has(currentBranch.id);
+
+  // Undo only ever moves the working schema, so the button belongs to
+  // the two views that put that schema on screen: the editor and the
+  // repo home. On the doors, a diff, a compare or a merge it could
+  // only be dead chrome, so it isn't rendered there. Within the two
+  // views the disabled state still covers "nothing edited yet".
+  const showUndo =
+    schema !== null &&
+    !showGate &&
+    !doorsOpen &&
+    !merging &&
+    !comparing &&
+    !diffTarget;
+
+  // The shortcut is bound to the same views as the button, so
+  // Ctrl/Cmd+Z is live exactly where Undo is visible. Ungated it also
+  // fired in Compare and Merge, which don't render the working schema
+  // at all — an undo there reverted an edit with nothing on screen to
+  // show it had happened.
+  useEffect(() => {
+    if (!showUndo) return;
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== "z") {
+        return;
+      }
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+      ) {
+        return; // let the browser undo typing in the field
+      }
+      // While any modal is up, the schema on screen must stay frozen —
+      // an undo behind a conflict dialog would make "Overwrite their
+      // save" send something the user no longer sees.
+      if (document.querySelector(".overlay")) return;
+      e.preventDefault();
+      undo();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, showUndo]);
+
   // --- render -------------------------------------------------------------------
 
   if (loadError) {
+    // Keeps the app's chrome: this is a whole screen, and every screen
+    // carries the theme picker and the account chip. The repo name is
+    // static text rather than the usual home button — there is no repo
+    // to go home to — and neither exit needs the unsaved-changes guard,
+    // since nothing was ever loaded to be dirty.
     return (
-      <div className="repo-error">
-        <div className="empty empty--main">
-          <h2>Can't open this repo</h2>
-          <p>{loadError}</p>
-          <button type="button" className="btn btn--primary" onClick={onLeaveRepo}>
-            Back to your repos
-          </button>
+      <div className="repo-screen">
+        <header className="topbar">
+          <h1>
+            <span className="topbar-gem" aria-hidden="true" />
+            Schema Version Control
+          </h1>
+          <div className="topbar-actions">
+            <ThemeToggle />
+            <UserMenu
+              username={username}
+              onGoToRepos={onLeaveRepo}
+              onSwitchUser={onSwitchUser}
+            />
+          </div>
+        </header>
+        <div className="repo-error">
+          <div className="empty empty--main">
+            <span className="empty-icon empty-icon--danger" aria-hidden="true">
+              !
+            </span>
+            <h2>Can't open this repo</h2>
+            <p>{loadError}</p>
+            <button type="button" className="btn btn--primary" onClick={onLeaveRepo}>
+              Back to your repos
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  const currentBranch = branches.find((b) => b.id === branchId) ?? null;
   const parentName =
     currentBranch?.parentBranchId != null
       ? (branches.find((b) => b.id === currentBranch.parentBranchId)?.name ?? null)
@@ -537,68 +659,98 @@ export function RepoScreen({
     );
   }
 
-  const showGate =
-    schema !== null &&
-    currentBranch !== null &&
-    commits.length === 0 &&
-    schema.tables.length === 0 &&
-    !dirty &&
-    !gateDismissed.has(currentBranch.id);
+  // These three views open from the branch bar, which is on screen on
+  // the home as well as in the editor, so the way back has to name
+  // wherever closing them actually returns to. Null when that is the
+  // repo home: the top bar's repo name is the single way there, so an
+  // in-body button beside it would be a second door to one room.
+  const backLabel = doorsOpen ? "Edit" : showOverview ? null : "Editor";
+
+
+  // The entry doors, shared by the two ways in: the automatic gate on
+  // an empty branch, and "Edit" on the repo home (decisions.md #29).
+  // `showBack` is the only difference between them — the automatic
+  // gate is the landing for that branch and has nothing behind it.
+  function renderDoors(showBack: boolean) {
+    return (
+      <FirstCommitGate
+        branchName={currentBranch?.name ?? ""}
+        hasSchema={(schema?.tables.length ?? 0) > 0 || commits.length > 0}
+        onStartEditing={() => {
+          if (currentBranch) {
+            setGateDismissed((set) => new Set(set).add(currentBranch.id));
+          }
+          setDoorsOpen(false);
+          setShowOverview(false);
+        }}
+        onImportJson={() => setIo("import")}
+        onImportSql={() => setSqlOpen(true)}
+        onLoadExample={() => {
+          applyEdit(EXAMPLE_SCHEMA, "Example schema loaded — not saved yet");
+          setDoorsOpen(false);
+          setShowOverview(false);
+        }}
+        onCancel={
+          showBack
+            ? () => {
+                setDoorsOpen(false);
+                setShowOverview(true);
+              }
+            : undefined
+        }
+      />
+    );
+  }
 
   return (
     <div className="repo-screen">
       <header className="topbar">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => guardDirty("go back to your repos", onLeaveRepo)}
-        >
-          ← Repos
-        </button>
-        <h1>{repo?.name ?? "…"}</h1>
-        {repo && (
-          <button type="button" className="btn" onClick={() => setMembersOpen(true)}>
-            Share{repo.members.length > 0 ? ` (${repo.members.length + 1})` : ""}
+        <h1>
+          {/* The repo name is the way back to the home, the way it is
+              on any repo host — and the only one, so it has to work
+              from every view: compare, merge and diff all sit on top
+              of the home and have to be dismissed with it. Nothing is
+              lost on the way — the working schema stays in memory, so
+              this needs no unsaved-changes guard. */}
+          <button
+            type="button"
+            className="topbar-home"
+            onClick={() => {
+              setDoorsOpen(false);
+              setComparing(false);
+              setMerging(false);
+              setDiffTarget(null);
+              setShowOverview(true);
+            }}
+            title="Repo home"
+          >
+            <span className="topbar-gem" aria-hidden="true" />
+            {repo?.name ?? "…"}
           </button>
-        )}
+        </h1>
         <div className="topbar-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={undo}
-            disabled={!history || history.past.length === 0}
-            title="Undo last edit (Ctrl/Cmd+Z)"
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setIo("import")}
-            disabled={!schema}
-          >
-            Import JSON
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setSqlOpen(true)}
-            disabled={!schema}
-            title="Postgres SQL — more dialects later"
-          >
-            Import SQL <span className="badge-tag">Postgres</span>
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setIo("export")}
-            disabled={!schema}
-          >
-            Export JSON
-          </button>
-          <span className="user-chip" title="Your demo identity">
-            {username}
-          </span>
+          {showUndo && (
+            <>
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={undo}
+                disabled={!history || history.past.length === 0}
+                title="Undo last edit (Ctrl/Cmd+Z)"
+              >
+                Undo
+              </button>
+              <span className="topbar-rule" aria-hidden="true" />
+            </>
+          )}
+          <ThemeToggle />
+          {/* Both items leave the repo, so both go through the same
+              unsaved-changes guard as a branch switch. */}
+          <UserMenu
+            username={username}
+            onGoToRepos={() => guardDirty("go back to your repos", onLeaveRepo)}
+            onSwitchUser={() => guardDirty("switch user", onSwitchUser)}
+          />
         </div>
       </header>
 
@@ -619,7 +771,8 @@ export function RepoScreen({
           mergeOpen={merging}
           canCompare={branchable.length > 0}
           compareOpen={comparing}
-          canCommit={commits.length > 0 || (schema?.tables.length ?? 0) > 0}
+          canCommit={canCommit}
+          commitBlockedReason={commitBlockedReason}
           onNewBranch={() => {
             setBranchFromId(
               branchable.some((b) => b.id === branchId)
@@ -646,8 +799,15 @@ export function RepoScreen({
         <div className="merge-banner">
           <p className="merge-banner-text">
             <strong>Merging “{pendingMerge.sourceBranchName}”</strong> — the
-            merged schema is saved here as the working state. Review it, adjust
-            in the editor if something's off, then commit to finish.
+            merged schema is saved here as the working state. Review it,{" "}
+            {/* The merge rarely lands a schema that's ready as-is, so
+                the way to keep editing is part of the sentence rather
+                than a fourth button competing with Commit. It opens
+                the editor on the merged state — not the last commit. */}
+            <button type="button" className="link-btn" onClick={openMergeEditor}>
+              adjust in the editor
+            </button>{" "}
+            if something's off, then commit to finish.
           </p>
           <div className="merge-banner-actions">
             <button
@@ -670,7 +830,11 @@ export function RepoScreen({
             >
               Commit merge…
             </button>
-            <button type="button" className="btn" onClick={abandonMerge}>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={abandonMerge}
+            >
               Abandon
             </button>
           </div>
@@ -683,19 +847,7 @@ export function RepoScreen({
             <p>Loading branch…</p>
           </div>
         ) : showGate ? (
-          <FirstCommitGate
-            branchName={currentBranch?.name ?? ""}
-            onStartEditing={() => {
-              if (currentBranch) {
-                setGateDismissed((s) => new Set(s).add(currentBranch.id));
-              }
-            }}
-            onImportJson={() => setIo("import")}
-            onImportSql={() => setSqlOpen(true)}
-            onLoadExample={() =>
-              applyEdit(EXAMPLE_SCHEMA, "Example schema loaded — not saved yet")
-            }
-          />
+          renderDoors(false)
         ) : (
           <>
             {merging && branchId !== null ? (
@@ -708,12 +860,14 @@ export function RepoScreen({
                 }}
                 onSwitchToParent={requestSwitch}
                 onLanded={landMerge}
+                backLabel={backLabel}
               />
             ) : comparing && branchId !== null ? (
               <CompareView
                 branches={branches}
                 initialBranchId={branchId}
                 onClose={() => setComparing(false)}
+                backLabel={backLabel}
               />
             ) : diffTarget ? (
               <DiffView
@@ -724,6 +878,35 @@ export function RepoScreen({
                 branchName={currentBranch?.name ?? ""}
                 parentName={parentName}
                 onClose={() => setDiffTarget(null)}
+                backLabel={backLabel}
+              />
+            ) : doorsOpen ? (
+              renderDoors(true)
+            ) : showOverview ? (
+              // Below merge/compare/diff on purpose: those open from
+              // the branch bar, which is on screen on the home too, so
+              // the home must yield to them — and closing one comes
+              // back here rather than dumping you in the editor.
+              <RepoOverview
+                repo={repo}
+                branches={branches}
+                currentBranch={currentBranch}
+                schema={schema}
+                commits={commits}
+                savedBy={working.savedBy}
+                savedAt={working.savedAt}
+                dirty={dirty}
+                // The doors offer "Replace from JSON/SQL", which would
+                // throw the merged schema away. While a merge is
+                // pending, Edit means "keep working on what I merged".
+                onOpenDoors={() => (mergePending ? openMergeEditor() : setDoorsOpen(true))}
+                onOpenLatestDiff={() => {
+                  const latest = commits[0];
+                  if (latest) setDiffTarget({ kind: "commit", commit: latest });
+                }}
+                onSwitchBranch={requestSwitch}
+                onShare={() => setMembersOpen(true)}
+                onExportJson={() => setIo("export")}
               />
             ) : (
               <>
@@ -746,11 +929,18 @@ export function RepoScreen({
                     />
                   ) : (
                     <div className="empty empty--main">
+                      {/* A table card that isn't there yet: dashed
+                          outline, three placeholder column bars. */}
+                      <div className="empty-glyph" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
                       <h2>Nothing here yet</h2>
                       <p>
                         A schema is a set of tables. Add your first one in the
-                        sidebar, or use <strong>Import JSON</strong> to bring
-                        one in.
+                        sidebar, or go back to the repo home and hit{" "}
+                        <strong>Edit</strong> to import one.
                       </p>
                     </div>
                   )}
@@ -788,6 +978,8 @@ export function RepoScreen({
           onImport={(imported) => {
             applyEdit(imported, "Imported schema — not saved yet");
             setIo(null);
+            setDoorsOpen(false);
+            setShowOverview(false);
           }}
         />
       )}
@@ -797,6 +989,8 @@ export function RepoScreen({
           onImport={(imported) => {
             applyEdit(imported, "SQL imported — not saved yet");
             setSqlOpen(false);
+            setDoorsOpen(false);
+            setShowOverview(false);
           }}
         />
       )}
@@ -836,7 +1030,7 @@ export function RepoScreen({
           title="Commit this schema"
           label="What changed?"
           placeholder="e.g. add orders table with FK to users"
-          submitLabel="Commit"
+          submitLabel={`Commit into ${currentBranch?.name ?? "this branch"}`}
           initialValue={commitPrefill ?? undefined}
           hint={
             pendingMerge && branchId === pendingMerge.parentBranchId
@@ -870,19 +1064,20 @@ export function RepoScreen({
           }}
           onCancel={() => setBranching(false)}
         >
-          <label className="prompt-label">
+          <div className="prompt-label">
             Starting from
-            <select
-              value={branchFromId ?? undefined}
-              onChange={(e) => setBranchFromId(Number(e.target.value))}
-            >
-              {branchable.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select
+              className="uiselect--mono"
+              menuClassName="uiselect-menu--mono"
+              value={branchFromId ?? branchable[0]?.id ?? 0}
+              options={branchable.map((branch) => ({
+                value: branch.id,
+                label: branch.name,
+              }))}
+              ariaLabel="Starting from"
+              onChange={setBranchFromId}
+            />
+          </div>
         </TextPromptDialog>
       )}
       {membersOpen && repo && (

@@ -58,11 +58,16 @@ export function MembersDialog({
         <ul className="member-list">
           {people.map((person) => (
             <li key={person.name}>
-              <span>
+              <span className="member-avatar" aria-hidden="true">
+                {person.name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="member-name">
                 {person.name}
                 {person.name === username && " (you)"}
               </span>
-              <span className="member-role">{person.role}</span>
+              <span className={`member-role member-role--${person.role}`}>
+                {person.role}
+              </span>
             </li>
           ))}
         </ul>
@@ -84,7 +89,7 @@ export function MembersDialog({
           />
           <button
             type="submit"
-            className="btn btn--primary"
+            className="btn btn--accent-soft"
             disabled={value.trim() === "" || busy}
           >
             {busy ? "Adding…" : "Add member"}
@@ -100,7 +105,7 @@ export function MembersDialog({
           </p>
         )}
         <div className="dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn btn--primary" onClick={onClose}>
             Close
           </button>
         </div>

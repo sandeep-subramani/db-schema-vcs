@@ -22,6 +22,11 @@ export interface Branch {
   parentBranchId: number | null;
   commitCount: number;
   createdAt: string;
+  /** Last save on that branch's working state — null before the first
+   *  one. Rides along with the branch list, so the repo home can show
+   *  every branch's recency without a request per branch. */
+  savedBy: string | null;
+  savedAt: string | null;
 }
 
 export interface WorkingState {

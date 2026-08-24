@@ -639,3 +639,126 @@ describe("working state, branching, commits", () => {
     expect((await call("GET", "/commits/3000000000", { user: "dev" })).status).toBe(404);
   });
 });
+
+// A commit that changes nothing would sit in history showing "no
+// schema changes" when opened — so it isn't a commit (decisions.md
+// #28). The rule is the engine's diff, not raw JSON equality, so it
+// matches exactly what the diff view would show.
+describe("empty commits (decisions.md #28)", () => {
+  const TWO_TABLES: Schema = {
+    tables: [
+      {
+        name: "notes",
+        columns: [{ name: "id", type: "unique-id", nullable: false }],
+        primaryKey: ["id"],
+      },
+      {
+        name: "tags",
+        columns: [{ name: "id", type: "unique-id", nullable: false }],
+        primaryKey: ["id"],
+      },
+    ],
+  };
+
+  let mainId: number;
+  let repoId: number;
+
+  beforeAll(async () => {
+    await call("POST", "/users", { body: { username: "nora" } });
+    const created = await call("POST", "/repos", { user: "nora", body: { name: "steady" } });
+    mainId = (created.body as { mainBranchId: number }).mainBranchId;
+    repoId = (created.body as { repo: { id: number } }).repo.id;
+  });
+
+  it("refuses an empty first commit and writes nothing", async () => {
+    const empty = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: { message: "nothing yet", snapshot: { tables: [] }, expectedRev: 0 },
+    });
+    expect(empty.status).toBe(400);
+    expect(String(empty.body.error)).toContain("no schema here yet");
+
+    const history = await call("GET", `/branches/${mainId}/commits`, { user: "nora" });
+    expect(history.body.commits).toHaveLength(0);
+    // The working save inside the commit was rolled back with it.
+    const state = await call("GET", `/branches/${mainId}`, { user: "nora" });
+    expect(state.body.rev).toBe(0);
+  });
+
+  it("refuses a recommit of the same schema, reorder included", async () => {
+    const first = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: { message: "two tables", snapshot: TWO_TABLES, expectedRev: 0 },
+    });
+    expect(first.status).toBe(201);
+    const revAfterCommit = first.body.rev as number;
+
+    const same = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: { message: "again", snapshot: TWO_TABLES, expectedRev: revAfterCommit },
+    });
+    expect(same.status).toBe(400);
+    expect(String(same.body.error)).toContain("matches the last commit");
+
+    // Order isn't part of the schema the diff reports, so a reorder is
+    // no more a change than an exact copy.
+    const reordered: Schema = { tables: [TWO_TABLES.tables[1]!, TWO_TABLES.tables[0]!] };
+    const shuffled = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: { message: "shuffled", snapshot: reordered, expectedRev: revAfterCommit },
+    });
+    expect(shuffled.status).toBe(400);
+
+    // Neither refusal wrote anything — same history, same working rev.
+    const history = await call("GET", `/branches/${mainId}/commits`, { user: "nora" });
+    expect(history.body.commits).toHaveLength(1);
+    const state = await call("GET", `/branches/${mainId}`, { user: "nora" });
+    expect(state.body.rev).toBe(revAfterCommit);
+    expect(state.body.snapshot).toEqual(TWO_TABLES);
+
+    // A real change still commits.
+    const real = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: { message: "drop tags", snapshot: A_TABLE, expectedRev: revAfterCommit },
+    });
+    expect(real.status).toBe(201);
+  });
+
+  it("still allows a merge commit that changes nothing", async () => {
+    // "twin" adds a table and takes it straight back out, so its tip
+    // records the same schema as main's. Merging it in changes no
+    // schema — but the commit still has to land, because it's what
+    // advances twin's stored base (decisions.md #20).
+    const branch = await call("POST", `/repos/${repoId}/branches`, {
+      user: "nora",
+      body: { name: "twin", fromBranchId: mainId },
+    });
+    const twinId = (branch.body.branch as { id: number }).id;
+
+    const added = await call("POST", `/branches/${twinId}/commits`, {
+      user: "nora",
+      body: { message: "add tags", snapshot: TWO_TABLES, expectedRev: 0 },
+    });
+    expect(added.status).toBe(201);
+    const removed = await call("POST", `/branches/${twinId}/commits`, {
+      user: "nora",
+      body: { message: "take tags back out", snapshot: A_TABLE, expectedRev: added.body.rev },
+    });
+    expect(removed.status).toBe(201);
+    const twinTipId = (removed.body.commit as { id: number }).id;
+
+    const mainState = await call("GET", `/branches/${mainId}`, { user: "nora" });
+    const mergeCommit = await call("POST", `/branches/${mainId}/commits`, {
+      user: "nora",
+      body: {
+        message: "Merge branch 'twin'",
+        snapshot: A_TABLE,
+        expectedRev: mainState.body.rev,
+        merge: { sourceBranchId: twinId, mergedCommitId: twinTipId },
+      },
+    });
+    expect(mergeCommit.status).toBe(201);
+    const base = await pool.query("SELECT base_snapshot FROM branches WHERE id = $1", [twinId]);
+    expect(base.rows[0].base_snapshot).toEqual(A_TABLE);
+  });
+});

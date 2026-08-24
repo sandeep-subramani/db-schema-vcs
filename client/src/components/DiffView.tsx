@@ -44,6 +44,7 @@ export function DiffView({
   branchName,
   parentName,
   onClose,
+  backLabel = "Editor",
 }: {
   target: DiffTarget;
   /** The branch's commits, newest first. */
@@ -54,6 +55,8 @@ export function DiffView({
   /** Parent branch name, when this branch split from one. */
   parentName: string | null;
   onClose: () => void;
+  /** Where onClose lands — the repo home opens this view too. */
+  backLabel?: string | null;
 }) {
   const index =
     target.kind === "commit"
@@ -167,9 +170,14 @@ export function DiffView({
   return (
     <main className="diff-view">
       <div className="diff-head">
-        <button type="button" className="btn" onClick={onClose}>
-          ← Editor
-        </button>
+        {/* Only when closing lands somewhere the top bar can't take
+            you: the editor or the entry doors. Getting to the repo
+            home is the top bar's job alone. */}
+        {backLabel !== null && (
+          <button type="button" className="btn" onClick={onClose}>
+            ← {backLabel}
+          </button>
+        )}
         <div className="diff-title">
           <h2>{title}</h2>
           <p>{subtitle}</p>

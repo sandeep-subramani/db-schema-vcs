@@ -1,10 +1,39 @@
 # CLAUDE.md — Schema Version Control
 
 ## UI restyle rules
-- Presentation-only: never modify props, state, hooks, handlers,
-  context, or data fetching. Only JSX markup within render + styles.
-- If a visual change requires moving logic or props, stop and ask.
-- After each screen: run tests, screenshot via Playwright, show diff.
+- We are refactoring the UI design view by view. The pre-redesign
+  state of every view is screenshotted in design/current. Per view,
+  I supply reference image(s) of the new look — build to that image;
+  don't start a view I haven't given an image for.
+- Presentation-only: change the JSX render markup and CSS alone.
+  Never touch React component logic or structure — props, state,
+  hooks, effects, handlers, context, data fetching, or component
+  control flow.
+- If matching the image requires a logic change, stop and prompt me
+  first. When I approve one, keep it minimal and be careful: no UI
+  breaks or bugs, existing behavior (validation, errors, busy/
+  disabled states) must survive byte-identical wherever possible.
+- After each screen: run tests/typecheck/lint, screenshot the result
+  in both themes via browser tooling (Playwright or the DevTools
+  MCP), and show it against the reference. New captures go in
+  design/new. design/ is working material — never committed.
+- Standing choices from pass 1 (login + theme switcher), applying to
+  all later views:
+  - The new palette is flipped globally in index.css tokens (violet
+    accent, magenta --accent-2, near-black ground, --frame chrome,
+    filled primary buttons). Style views with these tokens; don't
+    reintroduce per-view palettes. Un-restyled views inheriting the
+    new colors before their pass is expected.
+  - Zoho Puvi is the UI typeface (--font-ui); --font-mono stack
+    unchanged. It isn't on Google Fonts, so the @font-face rules at
+    the top of index.css pull the woff2 files from Zoho's CDN
+    (static.zohocdn.com, preconnected in client/index.html). Zoho
+    ships a separate family per weight, each at font-weight: normal;
+    we re-declare one family with real weights so the font-weight
+    values used across index.css keep working. This replaced Space
+    Grotesk, the pass-1 choice.
+  - All the ref images may/may not come with the theme picker icon, 
+    it shouldn't be skipped - each and every page should have it.
 
 ## What this is
 Web app: version control for database schemas — branch a schema,
